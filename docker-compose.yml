@@ -1,0 +1,41 @@
+# Local development services. Production runs on the Hostinger VPS (see docs/07-deployment.md).
+#   pnpm db:up     → PostgreSQL only
+#   pnpm db:tools  → PostgreSQL + pgAdmin (http://localhost:5050)
+name: troofn
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: troofn-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: troofn
+      POSTGRES_PASSWORD: troofn
+      POSTGRES_DB: troofn
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U troofn -d troofn']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: troofn-pgadmin
+    profiles: ['tools']
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@troofn.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - '5050:80'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

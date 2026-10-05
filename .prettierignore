@@ -1,0 +1,6 @@
+dist
+coverage
+node_modules
+pnpm-lock.yaml
+.angular
+apps/api/src/generated

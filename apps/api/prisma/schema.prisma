@@ -1,0 +1,12 @@
+// Troofn Business Gate — database schema.
+// Models are added in the database phase. See docs/05-database-plan.md.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}

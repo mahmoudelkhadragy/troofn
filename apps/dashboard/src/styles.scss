@@ -1,0 +1,51 @@
+@use '@angular/material' as mat;
+@use './styles/theme-colors' as troofn;
+
+html {
+  color-scheme: light;
+  @include mat.theme(
+    (
+      color: (
+        primary: troofn.$primary-palette,
+        tertiary: troofn.$tertiary-palette,
+      ),
+      // Inter has no Arabic glyphs, so Arabic text falls back to IBM Plex Sans Arabic.
+      typography: (
+          plain-family: (
+            'Inter',
+            'IBM Plex Sans Arabic',
+            system-ui,
+            sans-serif,
+          ),
+          brand-family: (
+            'Inter',
+            'IBM Plex Sans Arabic',
+            system-ui,
+            sans-serif,
+          ),
+        ),
+      density: 0,
+    )
+  );
+
+  // Pin the primary color to the exact Troofn brand maroon.
+  --mat-sys-primary: #7b1e2b;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--mat-sys-body-large-font);
+  background: var(--mat-sys-surface-container-low);
+  color: var(--mat-sys-on-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Directional icons (arrows, chevrons) flip automatically in RTL. */
+[dir='rtl'] .tf-flip-rtl {
+  transform: scaleX(-1);
+}
