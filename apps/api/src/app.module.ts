@@ -4,10 +4,10 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AllExceptionsFilter } from './common/filters/index.js';
-import { RolesGuard } from './common/guards/index.js';
 import { TransformResponseInterceptor } from './common/interceptors/index.js';
 import { type AppConfig, configuration, envValidationSchema } from './config/index.js';
 import { PrismaModule } from './database/index.js';
+import { AccessControlModule, PermissionsGuard } from './modules/access-control/index.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -51,12 +51,13 @@ import { HealthModule } from './modules/health/health.module.js';
     // ── Feature modules (added per roadmap phase) ──
     HealthModule,
     AuthModule,
+    AccessControlModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    // Global guards run in this order: rate limit → valid access token → role.
+    // Global guards run in this order: rate limit → valid access token → permission.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_INTERCEPTOR, useClass: TransformResponseInterceptor },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],

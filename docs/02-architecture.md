@@ -61,8 +61,7 @@ src/
 ├─ app.module.ts           root module: config, logger, throttler, prisma, global guards/filters/interceptors
 ├─ config/                 typed configuration + Joi env validation (app refuses to start on bad env)
 ├─ common/
-│  ├─ decorators/          @Public(), @Roles(...), @CurrentUser()
-│  ├─ guards/              RolesGuard (global). JwtAuthGuard is added in the auth phase
+│  ├─ decorators/          @Public(), @CurrentUser(), @AllowPendingPasswordChange()
 │  ├─ filters/             AllExceptionsFilter → { success:false, error:{…} }
 │  ├─ interceptors/        TransformResponseInterceptor → { success:true, data, meta? }
 │  └─ dto/                 PaginationQueryDto
@@ -95,8 +94,8 @@ modules/clients/
 ### Request pipeline
 
 ```
-Request → helmet/CORS → ThrottlerGuard → JwtAuthGuard* → RolesGuard → ValidationPipe
-        → Controller → Service (ownership check + Prisma) → TransformResponseInterceptor → Response
+Request → helmet/CORS → ThrottlerGuard → JwtAuthGuard → PermissionsGuard → ValidationPipe
+        → Controller (@Access() scope) → Service (scope → Prisma where) → TransformResponseInterceptor → Response
 Errors anywhere → AllExceptionsFilter → standard error envelope
 (* added in the auth phase)
 ```
