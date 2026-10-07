@@ -236,7 +236,7 @@ Branching: create `develop` from `main`, then `feature/auth-rbac`. Each step is 
 
 0. ✅ **Prep (your machine):** `nvm use` (the shell is on Node 20; the project needs 24), start Docker Desktop, then `pnpm db:up`. Done: Postgres runs on host port **5433**, because a native PostgreSQL 18 already uses 5432.
 1. ✅ **DB design doc:** rewrite `docs/05`, then review it together.
-2. **Schema and migration:**
+2. ✅ **Schema and migration:**
    - Write the stage-1 models, run `prisma migrate dev --create-only --name init_identity_access`, read the SQL together, add the CHECKs, and apply.
    - Check in Prisma Studio and `\d users` in psql.
 3. **RBAC catalog and seed:** permission enum, matrix, seed script. Run it, then inspect the `role_permissions` rows.

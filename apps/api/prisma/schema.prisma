@@ -1,5 +1,12 @@
 // Troofn Business Gate — database schema.
-// Models are added in the database phase. See docs/05-database-plan.md.
+// Full design and the phase each table belongs to: docs/05-database-plan.md.
+//
+// Conventions
+// - Tables and columns are snake_case in PostgreSQL (@@map / @map) and camelCase in TypeScript.
+// - Primary keys are UUID v7 (time-ordered, so inserts stay sequential in the index).
+// - Timestamps are timestamptz(3); calendar dates are date.
+// - Business links use onDelete: Restrict; rows owned by a parent use Cascade.
+// - CHECK constraints Prisma can't express live in the migration SQL (see migrations/*/migration.sql).
 
 generator client {
   provider     = "prisma-client"
@@ -9,4 +16,238 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─────────────────────────────── Identity & access ───────────────────────────────
+
+/// Who a role is for: Troofn staff, or a login that belongs to a client company.
+enum RoleAudience {
+  STAFF
+  CLIENT
+
+  @@map("role_audience")
+}
+
+/// Which rows a granted permission covers. See docs/03-roles-and-permissions.md.
+enum PermissionScope {
+  ALL // every row
+  ASSIGNED // clients / projects the user is assigned to
+  OWN_CLIENT // rows of the user's own client company
+  OWN // rows that belong to the user
+
+  @@map("permission_scope")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("user_status")
+}
+
+enum SessionPlatform {
+  WEB
+  IOS
+  ANDROID
+  UNKNOWN
+
+  @@map("session_platform")
+}
+
+enum SessionRevokeReason {
+  LOGOUT
+  LOGOUT_ALL
+  TOKEN_REUSE
+  PASSWORD_CHANGED
+  PASSWORD_RESET
+  USER_DEACTIVATED
+
+  @@map("session_revoke_reason")
+}
+
+/// A system role. `key` equals the Role enum value in packages/shared.
+model Role {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  key         String       @unique @db.VarChar(50)
+  nameAr      String       @map("name_ar") @db.VarChar(100)
+  nameEn      String       @map("name_en") @db.VarChar(100)
+  audience    RoleAudience
+  description String?
+  isSystem    Boolean      @default(true) @map("is_system")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  permissions RolePermission[]
+  users       User[]
+
+  @@map("roles")
+}
+
+/// One action in the system, as a `module.action` key (e.g. `clients.read`).
+model Permission {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  key         String   @unique @db.VarChar(100)
+  module      String   @db.VarChar(50)
+  description String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+/// Grants a permission to a role, limited to the rows described by `scope`.
+model RolePermission {
+  roleId       String          @map("role_id") @db.Uuid
+  permissionId String          @map("permission_id") @db.Uuid
+  scope        PermissionScope @default(ALL)
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+/// Every login: Troofn staff and client-company users.
+/// `clientId` is required for CLIENT-audience roles and NULL for STAFF roles (checked in UsersService).
+model User {
+  id                  String     @id @default(uuid(7)) @db.Uuid
+  /// Stored lowercase (CHECK constraint); unique across the whole system.
+  username            String     @unique @db.VarChar(50)
+  email               String?    @unique @db.VarChar(255)
+  displayName         String     @map("display_name") @db.VarChar(120)
+  phone               String?    @db.VarChar(30)
+  /// argon2id hash. Never returned by the API.
+  passwordHash        String     @map("password_hash")
+  status              UserStatus @default(ACTIVE)
+  roleId              String     @map("role_id") @db.Uuid
+  clientId            String?    @map("client_id") @db.Uuid
+  mustChangePassword  Boolean    @default(false) @map("must_change_password")
+  failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?  @map("locked_until") @db.Timestamptz(3)
+  lastLoginAt         DateTime?  @map("last_login_at") @db.Timestamptz(3)
+  passwordChangedAt   DateTime?  @map("password_changed_at") @db.Timestamptz(3)
+  createdById         String?    @map("created_by_id") @db.Uuid
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt           DateTime?  @map("deleted_at") @db.Timestamptz(3)
+
+  role         Role    @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  client       Client? @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdBy    User?   @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers User[]  @relation("UserCreatedBy")
+
+  sessions        UserSession[]
+  clientTeams     ClientTeamMember[] @relation("ClientTeamMemberUser")
+  teamAssignments ClientTeamMember[] @relation("ClientTeamMemberAssignedBy")
+
+  @@index([roleId])
+  @@index([clientId])
+  @@index([createdById])
+  @@map("users")
+}
+
+/// One login on one device. The refresh token rotates inside the row; the row doubles as login history.
+model UserSession {
+  id               String               @id @default(uuid(7)) @db.Uuid
+  userId           String               @map("user_id") @db.Uuid
+  /// HMAC-SHA256 of the current refresh-token secret.
+  refreshTokenHash String               @map("refresh_token_hash") @db.VarChar(128)
+  platform         SessionPlatform      @default(UNKNOWN)
+  deviceName       String?              @map("device_name") @db.VarChar(120)
+  userAgent        String?              @map("user_agent")
+  ipAddress        String?              @map("ip_address") @db.VarChar(45)
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt       DateTime             @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  expiresAt        DateTime             @map("expires_at") @db.Timestamptz(3)
+  revokedAt        DateTime?            @map("revoked_at") @db.Timestamptz(3)
+  revokeReason     SessionRevokeReason? @map("revoke_reason")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+// ─────────────────────────────── Clients core ───────────────────────────────
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("client_status")
+}
+
+/// The client's Troofn team (Figma: marketing manager, project/account manager, execution team).
+enum ClientTeamRole {
+  MARKETING_MANAGER
+  PROJECT_MANAGER
+  EXECUTION
+
+  @@map("client_team_role")
+}
+
+/// Lookup for the client "specialization" select (عقارات, سيارات, …).
+model Sector {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  nameAr    String   @unique @map("name_ar") @db.VarChar(100)
+  nameEn    String   @map("name_en") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clients Client[]
+
+  @@map("sectors")
+}
+
+/// A client company (Figma: "بيانات العميل").
+model Client {
+  id                  String       @id @default(uuid(7)) @db.Uuid
+  /// Identifier code, e.g. TID00S1W.
+  code                String       @unique @db.VarChar(20)
+  companyName         String       @map("company_name") @db.VarChar(200)
+  contactName         String       @map("contact_name") @db.VarChar(120)
+  email               String?      @unique @db.VarChar(255)
+  phone               String?      @db.VarChar(30)
+  website             String?      @db.VarChar(255)
+  sectorId            String?      @map("sector_id") @db.Uuid
+  legalRepresentative String?      @map("legal_representative") @db.VarChar(120)
+  driveUrl            String?      @map("drive_url") @db.VarChar(500)
+  contractStartDate   DateTime?    @map("contract_start_date") @db.Date
+  renewalPeriodMonths Int?         @map("renewal_period_months") @db.SmallInt
+  /// The "App Access" toggle: when false, this client's users cannot log in.
+  appAccessEnabled    Boolean      @default(false) @map("app_access_enabled")
+  status              ClientStatus @default(ACTIVE)
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt           DateTime?    @map("deleted_at") @db.Timestamptz(3)
+
+  sector Sector?            @relation(fields: [sectorId], references: [id], onDelete: Restrict)
+  users  User[]
+  team   ClientTeamMember[]
+
+  @@index([sectorId])
+  @@map("clients")
+}
+
+/// Assigns a staff user to a client. Drives the ASSIGNED permission scope.
+model ClientTeamMember {
+  clientId     String         @map("client_id") @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  teamRole     ClientTeamRole @map("team_role")
+  assignedAt   DateTime       @default(now()) @map("assigned_at") @db.Timestamptz(3)
+  assignedById String?        @map("assigned_by_id") @db.Uuid
+
+  client     Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user       User   @relation("ClientTeamMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy User?  @relation("ClientTeamMemberAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@id([clientId, userId])
+  @@index([userId])
+  @@index([assignedById])
+  @@map("client_team_members")
 }

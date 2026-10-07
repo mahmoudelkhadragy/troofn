@@ -19,7 +19,7 @@
 | Column names                     | `snake_case` in the DB via `@map`; `camelCase` in Prisma and TypeScript                                                                                              |
 | Primary keys                     | `id String @id @default(uuid(7)) @db.Uuid`. UUID v7 is time-ordered, so B-tree inserts stay sequential                                                               |
 | Join tables                      | composite PK (`@@id([a_id, b_id])`), no surrogate id                                                                                                                 |
-| Timestamps                       | `created_at`, `updated_at` as `@db.Timestamptz(3)`. Calendar dates (contract start, work date) use `@db.Date`                                                        |
+| Timestamps                       | `created_at`, `updated_at` as `@db.Timestamptz(3)` on entity tables; join and log tables keep only the timestamps they need. Dates use `@db.Date`                    |
 | Soft delete                      | `deleted_at Timestamptz?` on business tables (users, clients, contracts, leads, …). Child and join tables are not soft-deleted                                       |
 | Enums                            | Prisma enums for **fixed workflow states** (status, priority, type)                                                                                                  |
 | Lookups                          | **Tables** for lists an admin may extend (sectors, job titles, SOW catalog, stage categories)                                                                        |
@@ -170,7 +170,7 @@ Every login: Troofn staff **and** client users. Figma: login is by **username** 
 | ------------------------------------ | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | id                                   | uuid PK            |                                                                                                                                    |
 | username                             | varchar(50) UK     | Stored lowercase. `CHECK (username = lower(username))`. Usernames are globally unique (SRS CLI-3)                                  |
-| email                                | varchar(255)? UK   | Optional                                                                                                                           |
+| email                                | varchar(255)? UK   | Optional, stored lowercase (`CHECK`)                                                                                               |
 | display_name                         | varchar(120)       | "Troofn Admin", "فهد القحطاني"                                                                                                     |
 | phone                                | varchar(30)?       |                                                                                                                                    |
 | password_hash                        | text               | argon2id. Never returned by the API                                                                                                |
@@ -200,7 +200,7 @@ One row per login on a device. The refresh token **rotates inside the row**. The
 | device_name                            | varchar(120)?               | "iPhone 15 Pro" (sent by Flutter)                                                               |
 | user_agent                             | text?                       |                                                                                                 |
 | ip_address                             | varchar(45)?                |                                                                                                 |
-| created_at / last_used_at / expires_at | timestamptz                 | `expires_at` slides on each refresh                                                             |
+| created_at / last_used_at / expires_at | timestamptz                 | `expires_at` slides on each refresh; `CHECK (expires_at > created_at)`                          |
 | revoked_at                             | timestamptz?                |                                                                                                 |
 | revoke_reason                          | enum `SessionRevokeReason`? | `LOGOUT`, `LOGOUT_ALL`, `TOKEN_REUSE`, `PASSWORD_CHANGED`, `PASSWORD_RESET`, `USER_DEACTIVATED` |
 
@@ -220,7 +220,7 @@ The "بيانات العميل" form, plus the status dot and the "App Access" t
 | code                                 | varchar(20) UK      | Identifier code "رمز التعريف" (`TID00S1W`)                                           |
 | company_name                         | varchar(200)        | اسم الشركة                                                                           |
 | contact_name                         | varchar(120)        | اسم العميل (contact person)                                                          |
-| email                                | varchar(255)? UK    |                                                                                      |
+| email                                | varchar(255)? UK    | Stored lowercase (`CHECK`)                                                           |
 | phone                                | varchar(30)?        | Saudi format `+966…`                                                                 |
 | website                              | varchar(255)?       |                                                                                      |
 | sector_id                            | uuid? FK → sectors  | Restrict                                                                             |
