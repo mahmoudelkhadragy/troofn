@@ -1,0 +1,184 @@
+### Troofn API: auth & authorization walkthrough
+# Open this file in VS Code with the "REST Client" extension (humao.rest-client), then
+# click "Send Request" above any request. Work through it from top to bottom.
+#
+# Demo password of every seeded user: SEED_DEFAULT_PASSWORD in apps/api/.env.
+# Put it below (this file is committed, so never commit a real password).
+#
+# Reminder: login is limited to 5 requests/minute per IP (429 if you go faster).
+
+@baseUrl = http://localhost:3000/api/v1
+@password = REPLACE_WITH_SEED_DEFAULT_PASSWORD
+
+###############################################################################
+# 1. Log in as the admin and keep the tokens
+###############################################################################
+
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "admin", "password": "{{password}}", "platform": "WEB" }
+
+###
+@adminToken = {{loginAdmin.response.body.data.accessToken}}
+@adminRefresh = {{loginAdmin.response.body.data.refreshToken}}
+
+### Who am I? Look at "permissions": every key maps to a scope.
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{adminToken}}
+
+###############################################################################
+# 2. Authorization: the same endpoint, different roles, different rows
+###############################################################################
+
+### Admin → all 3 clients (scope ALL)
+GET {{baseUrl}}/clients
+Authorization: Bearer {{adminToken}}
+
+###
+# @name loginFahad
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "fahad.mm", "password": "{{password}}" }
+
+###
+@fahadToken = {{loginFahad.response.body.data.accessToken}}
+
+### Marketing manager → only his 2 assigned clients (scope ASSIGNED)
+GET {{baseUrl}}/clients
+Authorization: Bearer {{fahadToken}}
+
+### Marketing manager cannot manage users → 403
+GET {{baseUrl}}/users
+Authorization: Bearer {{fahadToken}}
+
+###
+# @name loginWejnad
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "wejnad.owner", "password": "{{password}}" }
+
+###
+@wejnadToken = {{loginWejnad.response.body.data.accessToken}}
+
+### Client owner → only their own company (scope OWN_CLIENT)
+GET {{baseUrl}}/clients
+Authorization: Bearer {{wejnadToken}}
+
+###
+# @name loginWriter
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "abdullah.writer", "password": "{{password}}" }
+
+###
+@writerToken = {{loginWriter.response.body.data.accessToken}}
+
+### Content writer has no clients.read → 403
+GET {{baseUrl}}/clients
+Authorization: Bearer {{writerToken}}
+
+### A client outside your scope is 404, not 403. Paste an id of ANOTHER company
+### (get ids from the admin list above) and call it with the Wejnad token.
+GET {{baseUrl}}/clients/PASTE_ANOTHER_CLIENT_ID
+Authorization: Bearer {{wejnadToken}}
+
+###############################################################################
+# 3. Refresh-token rotation
+###############################################################################
+
+### Exchange the refresh token. You get a NEW pair; the old refresh token dies.
+# @name refreshAdmin
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "{{adminRefresh}}" }
+
+### Send the OLD refresh token again → 401, and the whole session is revoked
+### (reuse = theft). Check user_sessions.revoke_reason = TOKEN_REUSE in Prisma Studio.
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "{{adminRefresh}}" }
+
+###############################################################################
+# 4. Failed logins, lockout and inactive accounts
+###############################################################################
+
+### Wrong password → 401 (same message as an unknown user)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "ahmed.employee", "password": "wrong-password-1" }
+
+### Client of an INACTIVE company → 403 (right password)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "nukhba.owner", "password": "{{password}}" }
+
+###############################################################################
+# 5. Users admin (log in as admin again first if your token expired: 15 minutes)
+###############################################################################
+
+### Roles with their permissions (feeds the "الصلاحية" dropdown)
+GET {{baseUrl}}/roles
+Authorization: Bearer {{adminToken}}
+
+### List users, filtered
+GET {{baseUrl}}/users?role=client&limit=10
+Authorization: Bearer {{adminToken}}
+
+### Create a client login. Replace clientId with a real id from GET /clients.
+# @name createUser
+POST {{baseUrl}}/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "username": "wejnad#2",
+  "displayName": "Test marketing officer",
+  "role": "client_marketing_officer",
+  "clientId": "PASTE_WEJNAD_CLIENT_ID",
+  "password": "Temp-pass-123"
+}
+
+###
+@newUserId = {{createUser.response.body.data.id}}
+
+### Creating a client role WITHOUT clientId → 400
+POST {{baseUrl}}/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "username": "no.client", "displayName": "x", "role": "client", "password": "Temp-pass-123" }
+
+### Deactivate → their sessions end and login returns 403
+PATCH {{baseUrl}}/users/{{newUserId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "status": "INACTIVE" }
+
+### Reset the password → the user must change it at next login
+POST {{baseUrl}}/users/{{newUserId}}/reset-password
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "newPassword": "Another-temp-9" }
+
+###############################################################################
+# 6. Logout
+###############################################################################
+
+### End the current session only
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{fahadToken}}
+
+### End every session of the user (all devices)
+POST {{baseUrl}}/auth/logout-all
+Authorization: Bearer {{wejnadToken}}

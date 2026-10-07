@@ -1,4 +1,4 @@
-> **Status:** approved 2026-10-08 · in progress on branch `feature/auth-rbac`. Progress is tracked per step in section 8.
+> **Status:** implemented 2026-10-08 on branch `feature/auth-rbac`; all steps in section 8 are done, final review pending.
 
 # Plan: Troofn DB design + Authentication & Authorization (stage 1)
 
@@ -243,7 +243,7 @@ Branching: create `develop` from `main`, then `feature/auth-rbac`. Each step is 
 4. ✅ **Authentication:** env and config, password and token helpers, sessions, `AuthService`/`AuthController`, global `JwtAuthGuard`, throttling. Unit tests. Try login in Swagger.
 5. ✅ **Authorization:** `AccessControlService`, `PermissionsGuard`, decorators, scope builder; remove `RolesGuard`; `GET /roles`. Unit tests.
 6. ✅ **Users admin API and scoped Clients read API.**
-7. **E2E tests, test tooling, and docs:**
+7. ✅ **E2E tests, test tooling, and docs:**
    - E2E role-matrix and auth-flow tests, the `.http` file, the walkthrough guide, the CI Postgres service.
    - Updates to `docs/03`/`docs/04`/HANDOFF.
 

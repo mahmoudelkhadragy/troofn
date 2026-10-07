@@ -2,18 +2,18 @@
 
 ## Conventions
 
-| Topic          | Rule                                                                                                                                                                        |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Base URL       | `/api/v1` (URI versioning; a breaking change → `v2` alongside `v1`)                                                                                                         |
-| Format         | JSON, `camelCase` fields, ISO-8601 UTC dates                                                                                                                                |
-| Resource names | plural nouns, kebab-case: `/clients`, `/production-files`                                                                                                                   |
-| Nesting        | max one level: `/clients/:id/reports`, `/projects/:id/messages`                                                                                                             |
-| Current user   | `/me`, `/me/salary`, `/my-tasks`, `/my-projects`                                                                                                                            |
-| IDs            | UUID (`uuid` in Postgres)                                                                                                                                                   |
-| Methods        | `GET` read · `POST` create/action · `PATCH` partial update · `PUT` full replace · `DELETE`                                                                                  |
-| Status codes   | `200` OK · `201` created · `204` no content · `400` validation · `401` unauthenticated · `403` wrong role · `404` not found/not yours · `409` conflict · `429` rate-limited |
-| Auth           | `Authorization: Bearer <accessToken>` (15 min) + refresh token (7 days)                                                                                                     |
-| Docs           | Every endpoint has Swagger decorators; browse `/api/docs` (disabled in production)                                                                                          |
+| Topic          | Rule                                                                                                                                                                                                       |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Base URL       | `/api/v1` (URI versioning; a breaking change → `v2` alongside `v1`)                                                                                                                                        |
+| Format         | JSON, `camelCase` fields, ISO-8601 UTC dates                                                                                                                                                               |
+| Resource names | plural nouns, kebab-case: `/clients`, `/production-files`                                                                                                                                                  |
+| Nesting        | max one level: `/clients/:id/reports`, `/projects/:id/messages`                                                                                                                                            |
+| Current user   | `/me`, `/me/salary`, `/my-tasks`, `/my-projects`                                                                                                                                                           |
+| IDs            | UUID (`uuid` in Postgres)                                                                                                                                                                                  |
+| Methods        | `GET` read · `POST` create/action · `PATCH` partial update · `PUT` full replace · `DELETE`                                                                                                                 |
+| Status codes   | `200` OK · `201` created · `204` no content · `400` validation · `401` unauthenticated · `403` missing permission · `404` not found/not yours · `409` conflict · `423` account locked · `429` rate-limited |
+| Auth           | `Authorization: Bearer <accessToken>` (15 min) + refresh token (7 days)                                                                                                                                    |
+| Docs           | Every endpoint has Swagger decorators; browse `/api/docs` (disabled in production)                                                                                                                         |
 
 ### Success envelope
 
@@ -69,36 +69,43 @@ Status legend: ⬜ planned · 🟨 in progress · ✅ done
 
 ### Auth
 
-| Method | Endpoint        | Roles                  | Purpose                          | Status |
-| ------ | --------------- | ---------------------- | -------------------------------- | ------ |
-| POST   | `/auth/login`   | public                 | Returns tokens + role + clientId | ⬜     |
-| POST   | `/auth/refresh` | public (refresh token) | New access token                 | ⬜     |
-| POST   | `/auth/logout`  | all                    | Revoke refresh token             | ⬜     |
-| GET    | `/me`           | all                    | Current user + role              | ⬜     |
-| POST   | `/me/fcm-token` | all                    | Register device token            | ⬜     |
+| Method | Endpoint                | Access                | Purpose                                                                  | Status |
+| ------ | ----------------------- | --------------------- | ------------------------------------------------------------------------ | ------ |
+| POST   | `/auth/login`           | public (5/min per IP) | Username + password → tokens + user + permissions. 401 / 403 / 423       | ✅     |
+| POST   | `/auth/refresh`         | public (5/min per IP) | Rotate the token pair; reuse of an old refresh token revokes the session | ✅     |
+| POST   | `/auth/logout`          | any signed-in user    | End the current session                                                  | ✅     |
+| POST   | `/auth/logout-all`      | any signed-in user    | End every session (all devices)                                          | ✅     |
+| GET    | `/auth/me`              | any (even pw-pending) | Current user, role, client and `permissions` map                         | ✅     |
+| POST   | `/auth/change-password` | any (even pw-pending) | Change own password; other sessions end; returns a fresh token pair      | ✅     |
+| POST   | `/me/fcm-token`         | all                   | Register device token (push notifications phase)                         | ⬜     |
 
-### Users (dashboard)
+### Users & roles (dashboard)
 
-| Method           | Endpoint     | Roles | Purpose                              | Status |
-| ---------------- | ------------ | ----- | ------------------------------------ | ------ |
-| GET/POST         | `/users`     | admin | List / create users                  | ⬜     |
-| GET/PATCH/DELETE | `/users/:id` | admin | Manage a user (role, client, active) | ⬜     |
+| Method | Endpoint                    | Permission             | Purpose                                                   | Status |
+| ------ | --------------------------- | ---------------------- | --------------------------------------------------------- | ------ |
+| GET    | `/roles`                    | `roles.read`           | Roles with their permissions and scopes                   | ✅     |
+| GET    | `/users`                    | `users.read`           | List (filters: role, status, clientId, search; paginated) | ✅     |
+| GET    | `/users/:id`                | `users.read`           | One user                                                  | ✅     |
+| POST   | `/users`                    | `users.create`         | Create a staff user or a client login                     | ✅     |
+| PATCH  | `/users/:id`                | `users.update`         | Profile, role, client, status                             | ✅     |
+| POST   | `/users/:id/reset-password` | `users.reset_password` | Temporary password; forced change at next login           | ✅     |
 
 ### Clients & central management
 
-| Method       | Endpoint                   | Roles                                   | Purpose                           | Status |
-| ------------ | -------------------------- | --------------------------------------- | --------------------------------- | ------ |
-| GET          | `/clients`                 | admin, mkt manager (assigned)           | List clients                      | ⬜     |
-| POST / PATCH | `/clients`, `/clients/:id` | admin                                   | Create / edit client              | ⬜     |
-| GET          | `/clients/:id/overview`    | client roles, admin, mkt manager        | Financial figures, team, timeline | ⬜     |
-| GET          | `/contracts`               | client, accountant (value only), admin  | List contracts                    | ⬜     |
-| POST         | `/contracts`               | admin                                   | Upload contract                   | ⬜     |
-| GET          | `/contracts/:id/file`      | client, accountant, admin               | Download contract                 | ⬜     |
-| GET          | `/clients/:id/sow`         | client, mkt officer, admin              | SOW + completion %                | ⬜     |
-| PATCH        | `/sow/:id/progress`        | admin                                   | Update completion %               | ⬜     |
-| GET / PUT    | `/plans/:id/axes`          | view: client, mkt officer · edit: admin | Strategic plan 7 axes             | ⬜     |
-| GET          | `/clients/:id/reports`     | client, mkt officer, admin              | Monthly reports                   | ⬜     |
-| GET          | `/clients/:id/t360`        | client, mkt officer, admin              | T-360 index + competitors         | ⬜     |
+| Method       | Endpoint                   | Roles                                   | Purpose                            | Status |
+| ------------ | -------------------------- | --------------------------------------- | ---------------------------------- | ------ |
+| GET          | `/clients`                 | `clients.read` (scoped)                 | List clients visible to the caller | ✅     |
+| GET          | `/clients/:id`             | `clients.read` (scoped, 404 outside)    | Client profile with its team       | ✅     |
+| POST / PATCH | `/clients`, `/clients/:id` | admin                                   | Create / edit client               | ⬜     |
+| GET          | `/clients/:id/overview`    | client roles, admin, mkt manager        | Financial figures, team, timeline  | ⬜     |
+| GET          | `/contracts`               | client, accountant (value only), admin  | List contracts                     | ⬜     |
+| POST         | `/contracts`               | admin                                   | Upload contract                    | ⬜     |
+| GET          | `/contracts/:id/file`      | client, accountant, admin               | Download contract                  | ⬜     |
+| GET          | `/clients/:id/sow`         | client, mkt officer, admin              | SOW + completion %                 | ⬜     |
+| PATCH        | `/sow/:id/progress`        | admin                                   | Update completion %                | ⬜     |
+| GET / PUT    | `/plans/:id/axes`          | view: client, mkt officer · edit: admin | Strategic plan 7 axes              | ⬜     |
+| GET          | `/clients/:id/reports`     | client, mkt officer, admin              | Monthly reports                    | ⬜     |
+| GET          | `/clients/:id/t360`        | client, mkt officer, admin              | T-360 index + competitors          | ⬜     |
 
 ### Finance
 
