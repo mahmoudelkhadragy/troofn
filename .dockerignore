@@ -1,0 +1,26 @@
+# Dependencies — installed fresh inside Docker
+node_modules
+**/node_modules
+
+# Git
+.git
+.gitignore
+
+# Build outputs — produced inside Docker
+**/dist
+apps/api/src/generated
+apps/dashboard/.angular
+
+# Secrets — injected at runtime via docker-compose environment
+**/.env
+**/.env.*
+!**/.env.example
+
+# Test artefacts
+**/coverage
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db

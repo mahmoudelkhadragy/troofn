@@ -1,9 +1,11 @@
 # Local development services. Production runs on the Hostinger VPS (see docs/07-deployment.md).
-#   pnpm db:up     → PostgreSQL only
-#   pnpm db:tools  → PostgreSQL + pgAdmin (http://localhost:5050)
+#   pnpm db:up          → PostgreSQL only
+#   pnpm db:tools       → PostgreSQL + pgAdmin (http://localhost:5050)
+#   docker compose up   → Full stack: API (3000) + Dashboard (4200) + PostgreSQL
 name: troofn
 
 services:
+  # ── Database ────────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: troofn-postgres
@@ -22,6 +24,55 @@ services:
       timeout: 5s
       retries: 10
 
+  # ── Backend ─────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: troofn-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Uses the 'postgres' service name as the DB host inside Docker networking
+      DATABASE_URL: postgresql://troofn:troofn@postgres:5432/troofn?schema=public
+      # Dashboard is served by nginx on port 4200 — browsers see requests as same-origin
+      # via the /api/ proxy, but CORS is kept for local 'ng serve' dev compatibility
+      CORS_ORIGINS: http://localhost:4200
+      # IMPORTANT: replace these secrets before deploying to any shared environment
+      JWT_ACCESS_SECRET: change-me-access-secret-min-32-characters
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: change-me-refresh-secret-min-32-characters
+      JWT_REFRESH_EXPIRES_IN: 7d
+      THROTTLE_TTL_MS: 60000
+      THROTTLE_LIMIT: 100
+      LOG_LEVEL: info
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/v1/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Frontend ─────────────────────────────────────────────────────────────────
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+    container_name: troofn-dashboard
+    restart: unless-stopped
+    ports:
+      - '4200:80'
+    depends_on:
+      api:
+        condition: service_started
+
+  # ── Tools (opt-in) ──────────────────────────────────────────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: troofn-pgadmin
