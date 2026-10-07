@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { JwtPayload, Permission } from '@troofn/shared';
-import { IS_PUBLIC_KEY } from '../../../common/decorators/index.js';
+import { IS_AUTHENTICATED_ONLY_KEY, IS_PUBLIC_KEY } from '../../../common/decorators/index.js';
 import type { AccessContext } from '../access-context.js';
 import { AccessControlService } from '../access-control.service.js';
 import { REQUIRED_PERMISSIONS_KEY } from '../decorators/require-permissions.decorator.js';
@@ -17,6 +17,9 @@ const DENIED = 'You do not have permission to perform this action';
  * Global guard that runs after JwtAuthGuard. Reads @RequirePermissions(), checks the
  * caller's role holds each permission, and puts an AccessContext (with the scope) on
  * the request. It answers "may you do this at all?"; services answer "on which rows?".
+ *
+ * Deny by default: every route must declare @Public(), @Authenticated() or
+ * @RequirePermissions(). A route that declares nothing is 403 for everyone.
  */
 @Injectable()
 export class PermissionsGuard implements CanActivate {

@@ -13,7 +13,12 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { AuthUser, JwtPayload, LoginResponse } from '@troofn/shared';
 import type { Request } from 'express';
-import { AllowPendingPasswordChange, CurrentUser, Public } from '../../common/decorators/index.js';
+import {
+  AllowPendingPasswordChange,
+  Authenticated,
+  CurrentUser,
+  Public,
+} from '../../common/decorators/index.js';
 import { AuthService } from './auth.service.js';
 import {
   AuthUserDto,
@@ -65,6 +70,7 @@ export class AuthController {
 
   @Post('logout')
   @ApiBearerAuth()
+  @Authenticated()
   @AllowPendingPasswordChange()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'End the current session' })
@@ -75,6 +81,7 @@ export class AuthController {
 
   @Post('logout-all')
   @ApiBearerAuth()
+  @Authenticated()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'End every session of the current user (all devices)' })
   @ApiNoContentResponse()
@@ -84,6 +91,7 @@ export class AuthController {
 
   @Get('me')
   @ApiBearerAuth()
+  @Authenticated()
   @AllowPendingPasswordChange()
   @ApiOperation({ summary: 'The signed-in user, role and permissions' })
   @ApiOkResponse({ type: AuthUserDto })
@@ -93,6 +101,7 @@ export class AuthController {
 
   @Post('change-password')
   @ApiBearerAuth()
+  @Authenticated()
   @AllowPendingPasswordChange()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Change own password; other sessions are logged out' })

@@ -1,7 +1,7 @@
 import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { type JwtPayload, Permission, Role } from '@troofn/shared';
-import { Public } from '../../../common/decorators/index.js';
+import { Authenticated, Public } from '../../../common/decorators/index.js';
 import type { AccessContext } from '../access-context.js';
 import { AccessControlService } from '../access-control.service.js';
 import { RequirePermissions } from '../decorators/require-permissions.decorator.js';
@@ -28,7 +28,8 @@ class Routes {
   @RequirePermissions(Permission.CLIENTS_READ) readClients() {}
   @RequirePermissions(Permission.CLIENTS_READ, Permission.USERS_READ) readBoth() {}
   @Public() @RequirePermissions(Permission.USERS_READ) publicRoute() {}
-  anyAuthenticatedUser() {}
+  @Authenticated() anyAuthenticatedUser() {}
+  forgotten() {}
 }
 
 function contextFor(handler: keyof Routes, user?: Partial<JwtPayload>) {

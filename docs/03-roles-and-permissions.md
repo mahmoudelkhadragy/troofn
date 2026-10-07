@@ -107,7 +107,7 @@ Request → ThrottlerGuard → JwtAuthGuard → PermissionsGuard → controller 
 ```
 
 1. **JwtAuthGuard** (global) verifies the access token and sets `request.user = { sub, role, clientId, sid, mcp }`. Routes marked `@Public()` skip it. While `mcp` (must change password) is true, only routes marked `@AllowPendingPasswordChange()` work.
-2. **PermissionsGuard** (global) reads `@RequirePermissions(...)`, looks the role up in `role_permissions` (cached 60 s), and answers **403** if any permission is missing. Otherwise it builds an `AccessContext { userId, role, clientId, scope }`.
+2. **PermissionsGuard** (global) is **deny by default**: a route must declare `@Public()`, `@Authenticated()` (any signed-in user, e.g. `/auth/me`) or `@RequirePermissions(...)`, otherwise it answers 403 for everyone, so a forgotten decorator can never expose data. It reads `@RequirePermissions(...)`, looks the role up in `role_permissions` (cached 60 s), and answers **403** if any permission is missing. Otherwise it builds an `AccessContext { userId, role, clientId, scope }`.
 3. **The controller** receives it with `@Access()` and passes it to the service.
 4. **The service** turns the scope into a query filter and always combines it with the other filters:
    ```ts

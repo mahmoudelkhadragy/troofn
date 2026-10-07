@@ -74,7 +74,7 @@ Paste an access token into https://jwt.io to read its claims: anyone can read th
 
 ## 5. Authorization in practice
 
-A route declares what it needs; the guard and the service do the rest:
+A route declares what it needs; the guard and the service do the rest. **A route that declares nothing is 403 for everyone** (deny by default); use `@Public()` or `@Authenticated()` to open one deliberately:
 
 ```ts
 @Get()
@@ -139,5 +139,5 @@ pnpm test:e2e     # 69 tests against a separate troofn_test database (created an
 1. Add the key to `packages/shared/src/enums/permission.enum.ts`, then `pnpm build:shared`.
 2. Give it a description in `rbac.matrix.ts` and grant it to roles, with a scope.
 3. `pnpm db:seed`.
-4. Protect the route with `@RequirePermissions(Permission.YOUR_KEY)` and scope the service query.
+4. Protect the route with `@RequirePermissions(Permission.YOUR_KEY)` (forgetting it gives 403, not an open route) and scope the service query.
 5. Extend `test/rbac.e2e-spec.ts` with who must get 200, 403 and 404.

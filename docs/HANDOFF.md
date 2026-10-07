@@ -50,7 +50,8 @@ Why these were chosen:
 2. **CI Postgres service** was added to `.github/workflows/ci.yml` but never run on GitHub. Check the Actions tab after the first push.
 3. **Branch**: all stage-1 work is on `feature/auth-rbac` (from `develop`, from `main`). Nothing has been pushed or merged.
 4. **Not built yet**: client CRUD (create/edit/deactivate), files, contracts, and every later module in `docs/05`. The dashboard login page.
-5. **Known trade-offs**: access tokens stay valid until they expire (≤ 15 min) after logout or deactivation; the rate-limit counter is in memory (fine for one VPS process).
+5. **Deferred from the stage-1 review** (minor): a production bootstrap admin (the seed creates no users in production, so the first admin needs a one-off script); a cleanup job for expired/revoked `user_sessions` rows; the login limit of 5/min per IP may be too tight for an office sharing one IP, so tune `AUTH_LOGIN_RATE_LIMIT` for production.
+6. **Known trade-offs**: access tokens stay valid until they expire (≤ 15 min) after logout or deactivation; the rate-limit counter is in memory (fine for one VPS process).
 
 ## Next steps
 
