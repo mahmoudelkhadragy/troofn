@@ -17,7 +17,7 @@ nvm use                       # Node 24 (see .nvmrc)
 corepack enable               # or: npm i -g pnpm@10
 pnpm install                  # installs everything + git hooks
 cp apps/api/.env.example apps/api/.env
-pnpm db:up                    # PostgreSQL in Docker (optional until the DB phase)
+pnpm db:up                    # PostgreSQL 16 in Docker on localhost:5433
 pnpm dev                      # API on :3000 and dashboard on :4200
 ```
 
