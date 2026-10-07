@@ -13,6 +13,23 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    # E2E tests need a real database. Same image and credentials as docker-compose.yml;
+    # host port 5433 matches DATABASE_URL in apps/api/.env.example. The tests create
+    # and seed their own `troofn_test` database inside it.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: troofn
+          POSTGRES_PASSWORD: troofn
+          POSTGRES_DB: troofn
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U troofn -d troofn"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
