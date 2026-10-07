@@ -9,8 +9,10 @@ import { type AppConfig, configuration, envValidationSchema } from './config/ind
 import { PrismaModule } from './database/index.js';
 import { AccessControlModule, PermissionsGuard } from './modules/access-control/index.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { ClientsModule } from './modules/clients/clients.module.js';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
   imports: [
@@ -52,6 +54,8 @@ import { HealthModule } from './modules/health/health.module.js';
     HealthModule,
     AuthModule,
     AccessControlModule,
+    UsersModule,
+    ClientsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
