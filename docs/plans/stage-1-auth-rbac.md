@@ -240,7 +240,7 @@ Branching: create `develop` from `main`, then `feature/auth-rbac`. Each step is 
    - Write the stage-1 models, run `prisma migrate dev --create-only --name init_identity_access`, read the SQL together, add the CHECKs, and apply.
    - Check in Prisma Studio and `\d users` in psql.
 3. ✅ **RBAC catalog and seed:** permission enum, matrix, seed script. Run it, then inspect the `role_permissions` rows.
-4. **Authentication:** env and config, password and token helpers, sessions, `AuthService`/`AuthController`, global `JwtAuthGuard`, throttling. Unit tests. Try login in Swagger.
+4. ✅ **Authentication:** env and config, password and token helpers, sessions, `AuthService`/`AuthController`, global `JwtAuthGuard`, throttling. Unit tests. Try login in Swagger.
 5. **Authorization:** `AccessControlService`, `PermissionsGuard`, decorators, scope builder; remove `RolesGuard`; `GET /roles`. Unit tests.
 6. **Users admin API and scoped Clients read API.**
 7. **E2E tests, test tooling, and docs:**

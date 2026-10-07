@@ -1,6 +1,7 @@
 import { ValidationPipe, VersioningType, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { API_PREFIX, API_VERSION } from '@troofn/shared';
 import helmet from 'helmet';
@@ -32,10 +33,12 @@ function setupSwagger(app: INestApplication): void {
 }
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService<AppConfig, true>);
 
   app.useLogger(app.get(Logger));
+  // Behind Nginx on the same host: trust it for the client IP (rate limits, session IPs).
+  app.set('trust proxy', 'loopback');
   app.use(helmet());
   app.enableCors({ origin: config.get('app.corsOrigins', { infer: true }), credentials: true });
   app.enableShutdownHooks();

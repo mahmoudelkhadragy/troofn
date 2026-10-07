@@ -8,6 +8,8 @@ import { RolesGuard } from './common/guards/index.js';
 import { TransformResponseInterceptor } from './common/interceptors/index.js';
 import { type AppConfig, configuration, envValidationSchema } from './config/index.js';
 import { PrismaModule } from './database/index.js';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
 
 @Module({
@@ -48,10 +50,12 @@ import { HealthModule } from './modules/health/health.module.js';
 
     // ── Feature modules (added per roadmap phase) ──
     HealthModule,
+    AuthModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    // JwtAuthGuard is registered here (before RolesGuard) in the auth phase.
+    // Global guards run in this order: rate limit → valid access token → role.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_INTERCEPTOR, useClass: TransformResponseInterceptor },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

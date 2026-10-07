@@ -14,11 +14,14 @@ export const configuration = () => ({
   database: {
     url: process.env.DATABASE_URL,
   },
-  jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET,
-    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
-    refreshSecret: process.env.JWT_REFRESH_SECRET,
-    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
+  auth: {
+    accessSecret: process.env.JWT_ACCESS_SECRET ?? '',
+    accessTtlSeconds: Number(process.env.JWT_ACCESS_TTL_SECONDS ?? 900),
+    refreshSecret: process.env.REFRESH_TOKEN_SECRET ?? '',
+    refreshTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 7),
+    maxFailedLogins: Number(process.env.AUTH_MAX_FAILED_LOGINS ?? 5),
+    lockoutMinutes: Number(process.env.AUTH_LOCKOUT_MINUTES ?? 15),
+    loginRateLimit: Number(process.env.AUTH_LOGIN_RATE_LIMIT ?? 5),
   },
   throttle: {
     ttl: Number(process.env.THROTTLE_TTL_MS ?? 60_000),
