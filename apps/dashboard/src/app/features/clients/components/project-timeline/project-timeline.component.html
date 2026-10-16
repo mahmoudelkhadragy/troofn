@@ -1,0 +1,46 @@
+<h2 class="m-0 text-left font-display text-[15px] font-bold leading-5 text-ink">
+  {{ timeline().title }}
+</h2>
+
+<!-- dir="ltr": time runs left to right, whatever the page direction. -->
+<div class="no-scrollbar relative mt-5 overflow-x-auto overflow-y-hidden" dir="ltr">
+  <ol class="relative m-0 flex min-w-[1000px] list-none p-0">
+    @for (step of timeline().steps; track $index) {
+      <li
+        class="flex min-w-0 flex-col items-center"
+        [class]="$index < 3 ? 'flex-[1.18]' : 'flex-1'"
+      >
+        <span
+          class="whitespace-nowrap text-[10px] leading-[13px]"
+          [class]="labelClass(step.kind)"
+          >{{ step.label }}</span
+        >
+        <span class="grid h-[22px] place-items-center"
+          ><i [class]="dotClass(step.kind)" aria-hidden="true"></i
+        ></span>
+        <span class="h-[14px] text-[9px] leading-[14px] text-[#545454]">{{
+          step.amount ? (step.amount | number) : ''
+        }}</span>
+      </li>
+    }
+    <li
+      class="pointer-events-none absolute inset-x-0 top-[38px] h-px bg-line"
+      aria-hidden="true"
+    ></li>
+  </ol>
+</div>
+
+<ul
+  class="m-0 mt-[31px] flex list-none flex-wrap items-center gap-7 p-0 font-display text-xs text-[#6b6b6b]"
+  dir="ltr"
+>
+  <li class="flex items-center gap-2">
+    <i class="size-[10px] rounded-full bg-brand" aria-hidden="true"></i>T360 Milestone
+  </li>
+  <li class="flex items-center gap-2">
+    <i class="size-[10px] rounded-[3px] bg-accent" aria-hidden="true"></i>SOW Phase
+  </li>
+  <li class="flex items-center gap-2">
+    <i class="size-[10px] rounded-[3px] bg-[#6b6b6b]" aria-hidden="true"></i>7SC Monthly
+  </li>
+</ul>

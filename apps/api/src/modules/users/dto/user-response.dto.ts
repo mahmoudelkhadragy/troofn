@@ -22,7 +22,6 @@ export class UserResponseDto {
   @ApiProperty({ enum: ['ACTIVE', 'INACTIVE'] }) status: 'ACTIVE' | 'INACTIVE';
   @ApiProperty({ type: UserRoleDto }) role: UserRoleDto;
   @ApiPropertyOptional({ type: UserClientDto, nullable: true }) client: UserClientDto | null;
-  @ApiProperty() mustChangePassword: boolean;
   @ApiPropertyOptional({ type: Date, nullable: true }) lastLoginAt: Date | null;
   @ApiPropertyOptional({ type: Date, nullable: true, description: 'Set while locked out' })
   lockedUntil: Date | null;

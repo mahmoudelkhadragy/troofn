@@ -1,0 +1,17 @@
+<button
+  [type]="type()"
+  [disabled]="disabled() || loading()"
+  [attr.aria-busy]="loading()"
+  [class]="classes()"
+  class="flex w-full items-center justify-center gap-2 rounded-lg px-8 disabled:opacity-70"
+>
+  @if (loading()) {
+    <span
+      class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+      aria-hidden="true"
+    ></span>
+  } @else if (icon()) {
+    <span class="material-symbols-outlined text-lg" aria-hidden="true">{{ icon() }}</span>
+  }
+  {{ label() }}
+</button>

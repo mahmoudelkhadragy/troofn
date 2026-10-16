@@ -1,7 +1,5 @@
-import { Dir } from '@angular/cdk/bidi';
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { LanguageService } from '@core/i18n/language.service';
 
 /**
  * Root component. The `dir` wrapper re-provides Directionality so Material
@@ -9,14 +7,8 @@ import { LanguageService } from '@core/i18n/language.service';
  */
 @Component({
   selector: 'tf-root',
-  imports: [RouterOutlet, Dir],
+  imports: [RouterOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div [dir]="language.dir()" class="contents">
-      <router-outlet />
-    </div>
-  `,
+  template: ` <router-outlet /> `,
 })
-export class App {
-  protected readonly language = inject(LanguageService);
-}
+export class App {}

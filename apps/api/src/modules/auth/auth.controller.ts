@@ -13,20 +13,9 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { AuthUser, JwtPayload, LoginResponse } from '@troofn/shared';
 import type { Request } from 'express';
-import {
-  AllowPendingPasswordChange,
-  Authenticated,
-  CurrentUser,
-  Public,
-} from '../../common/decorators/index.js';
+import { Authenticated, CurrentUser, Public } from '../../common/decorators/index.js';
 import { AuthService } from './auth.service.js';
-import {
-  AuthUserDto,
-  ChangePasswordDto,
-  LoginDto,
-  LoginResponseDto,
-  RefreshTokenDto,
-} from './dto/index.js';
+import { AuthUserDto, LoginDto, LoginResponseDto, RefreshTokenDto } from './dto/index.js';
 import type { SessionMeta } from './sessions.service.js';
 
 /** Per-IP limit for the endpoints that take credentials (AUTH_LOGIN_RATE_LIMIT per minute). */
@@ -71,7 +60,6 @@ export class AuthController {
   @Post('logout')
   @ApiBearerAuth()
   @Authenticated()
-  @AllowPendingPasswordChange()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'End the current session' })
   @ApiNoContentResponse()
@@ -92,25 +80,12 @@ export class AuthController {
   @Get('me')
   @ApiBearerAuth()
   @Authenticated()
-  @AllowPendingPasswordChange()
   @ApiOperation({ summary: 'The signed-in user, role and permissions' })
   @ApiOkResponse({ type: AuthUserDto })
   me(@CurrentUser() user: JwtPayload): Promise<AuthUser> {
     return this.auth.me(user);
   }
 
-  @Post('change-password')
-  @ApiBearerAuth()
-  @Authenticated()
-  @AllowPendingPasswordChange()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Change own password; other sessions are logged out' })
-  @ApiOkResponse({ type: LoginResponseDto })
-  changePassword(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: ChangePasswordDto,
-    @Req() req: Request,
-  ): Promise<LoginResponse> {
-    return this.auth.changePassword(user, dto, sessionMeta(req));
-  }
+  // There is deliberately no "change my password" endpoint: passwords are set and reset
+  // only by an owner or admin (POST /users, POST /users/:id/reset-password).
 }

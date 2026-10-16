@@ -1,0 +1,27 @@
+<h2 class="m-0 text-base font-bold leading-6 text-ink">فريق العمل</h2>
+
+<ul class="m-0 mt-[18px] flex list-none flex-col gap-[13px] p-0">
+  @for (member of team(); track member.id) {
+    <li class="flex items-center gap-3">
+      <span
+        class="grid size-[38px] shrink-0 place-items-center rounded-full bg-avatar text-sm text-muted"
+        aria-hidden="true"
+        >{{ member.name.charAt(0) }}</span
+      >
+      <span class="min-w-0 flex-1">
+        <span class="block truncate text-[15px] font-bold leading-5 text-ink">{{
+          member.name
+        }}</span>
+        <span class="block truncate text-[13px] leading-[18px] text-muted">{{ member.role }}</span>
+      </span>
+      <button
+        type="button"
+        class="flex h-[34px] w-20 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/16 bg-chip text-xs text-ink"
+        [attr.aria-label]="'مراسلة ' + member.name"
+      >
+        مراسلة
+        <span class="material-symbols-outlined text-lg" aria-hidden="true">call</span>
+      </button>
+    </li>
+  }
+</ul>

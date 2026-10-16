@@ -5,7 +5,7 @@ import { PASSWORD_POLICY, PASSWORD_POLICY_MESSAGE } from '../../auth/password.js
 export class ResetPasswordDto {
   @ApiProperty({
     format: 'password',
-    description: `Temporary password. ${PASSWORD_POLICY_MESSAGE}`,
+    description: `The user's new password; the owner or admin gives it to them. ${PASSWORD_POLICY_MESSAGE}`,
   })
   @IsString()
   @MaxLength(200)

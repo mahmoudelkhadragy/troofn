@@ -1,16 +1,12 @@
 import {
   type CanActivate,
   type ExecutionContext,
-  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { JwtPayload } from '@troofn/shared';
-import {
-  ALLOW_PENDING_PASSWORD_CHANGE_KEY,
-  IS_PUBLIC_KEY,
-} from '../../../common/decorators/index.js';
+import { IS_PUBLIC_KEY } from '../../../common/decorators/index.js';
 import { TokenService } from '../token.service.js';
 
 interface AuthenticatedRequest {
@@ -38,17 +34,7 @@ export class JwtAuthGuard implements CanActivate {
     const token = this.extractBearerToken(request);
     if (!token) throw new UnauthorizedException('Missing access token');
 
-    const user = await this.tokens.verifyAccessToken(token);
-
-    const allowsPendingChange = this.reflector.getAllAndOverride<boolean>(
-      ALLOW_PENDING_PASSWORD_CHANGE_KEY,
-      targets,
-    );
-    if (user.mcp && !allowsPendingChange) {
-      throw new ForbiddenException('Password change required');
-    }
-
-    request.user = user;
+    request.user = await this.tokens.verifyAccessToken(token);
     return true;
   }
 

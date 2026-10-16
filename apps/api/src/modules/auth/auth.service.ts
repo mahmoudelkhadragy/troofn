@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -7,11 +6,17 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { AuthUser, JwtPayload, LoginResponse } from '@troofn/shared';
+import type { AuthUser, ClientApp, JwtPayload, LoginResponse } from '@troofn/shared';
 import type { AppConfig } from '../../config/index.js';
 import { PrismaService } from '../../database/index.js';
-import { type AuthUserRow, authUserSelect, signInBlocker, toAuthUser } from './auth-user.mapper.js';
-import type { ChangePasswordDto, LoginDto } from './dto/index.js';
+import {
+  type AuthUserRow,
+  appBlocker,
+  authUserSelect,
+  signInBlocker,
+  toAuthUser,
+} from './auth-user.mapper.js';
+import type { LoginDto } from './dto/index.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { type SessionMeta, SessionsService } from './sessions.service.js';
 import { TokenService } from './token.service.js';
@@ -65,12 +70,17 @@ export class AuthService {
     const blocker = signInBlocker(user);
     if (blocker) throw new ForbiddenException(blocker);
 
+    // 5. The role may not use this app (only owner and admin open the dashboard). Checked only
+    //    after the password, so a wrong password never reveals which accounts are dashboard accounts.
+    const appBlocked = appBlocker(user, dto.app);
+    if (appBlocked) throw new ForbiddenException({ message: appBlocked, code: 'APP_NOT_ALLOWED' });
+
     const signedIn = await this.prisma.user.update({
       where: { id: user.id },
       data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
       select: authUserSelect,
     });
-    const session = await this.sessions.create(user.id, {
+    const session = await this.sessions.create(user.id, dto.app, {
       ...meta,
       platform: dto.platform,
       deviceName: dto.deviceName,
@@ -88,6 +98,11 @@ export class AuthService {
     // The account may have been deactivated since login: end the session.
     if (signInBlocker(user)) {
       await this.sessions.revoke(session.sessionId, 'USER_DEACTIVATED');
+      throw new UnauthorizedException('Session is no longer valid');
+    }
+    // The role may have changed since login (e.g. admin → employee): a dashboard session ends here.
+    if (appBlocker(user, session.app)) {
+      await this.sessions.revoke(session.sessionId, 'ACCESS_CHANGED');
       throw new UnauthorizedException('Session is no longer valid');
     }
     return this.buildResponse(user, session);
@@ -110,38 +125,6 @@ export class AuthService {
     return toAuthUser(user);
   }
 
-  /** Changes the password, logs out every other session and returns fresh tokens for this one. */
-  async changePassword(
-    current: JwtPayload,
-    dto: ChangePasswordDto,
-    meta: SessionMeta,
-  ): Promise<LoginResponse> {
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id: current.sub },
-      select: { passwordHash: true },
-    });
-    if (!(await verifyPassword(user.passwordHash, dto.currentPassword))) {
-      throw new BadRequestException('Current password is incorrect');
-    }
-    if (dto.newPassword === dto.currentPassword) {
-      throw new BadRequestException('New password must differ from the current one');
-    }
-
-    const updated = await this.prisma.user.update({
-      where: { id: current.sub },
-      data: {
-        passwordHash: await hashPassword(dto.newPassword),
-        passwordChangedAt: new Date(),
-        mustChangePassword: false,
-      },
-      select: authUserSelect,
-    });
-    // Every session, including this one, is replaced by a new session.
-    await this.sessions.revokeAllForUser(current.sub, 'PASSWORD_CHANGED');
-    const session = await this.sessions.create(current.sub, meta);
-    return this.buildResponse(updated, session);
-  }
-
   private async recordFailedLogin(userId: string): Promise<void> {
     const { failedLoginAttempts } = await this.prisma.user.update({
       where: { id: userId },
@@ -161,7 +144,7 @@ export class AuthService {
 
   private async buildResponse(
     user: AuthUserRow,
-    session: { sessionId: string; refreshToken: string; expiresAt: Date },
+    session: { sessionId: string; app: ClientApp; refreshToken: string; expiresAt: Date },
   ): Promise<LoginResponse> {
     const profile = toAuthUser(user);
     const accessToken = await this.tokens.signAccessToken({
@@ -169,7 +152,7 @@ export class AuthService {
       role: profile.role,
       clientId: user.clientId,
       sid: session.sessionId,
-      mcp: profile.mustChangePassword,
+      app: session.app,
     });
     return {
       tokenType: 'Bearer',

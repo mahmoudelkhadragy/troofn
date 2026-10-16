@@ -21,6 +21,8 @@ export class HealthController {
   live() {
     return {
       status: 'ok',
+      env: process.env.NODE_ENV ?? 'development',
+      commit: process.env.APP_COMMIT ?? 'unknown',
       uptime: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
     };

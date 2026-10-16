@@ -1,14 +1,20 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Permission, Role } from '@troofn/shared';
 import type { Paginated } from '../../common/interceptors/transform-response.interceptor.js';
 import { paginate } from '../../common/utils/index.js';
 import { PrismaService } from '../../database/index.js';
 import { Prisma } from '../../generated/prisma/client.js';
-import { type AccessContext, userScopeWhere } from '../access-control/index.js';
+import {
+  type AccessContext,
+  AccessControlService,
+  userScopeWhere,
+} from '../access-control/index.js';
 import { hashPassword } from '../auth/password.js';
 import { SessionsService } from '../auth/sessions.service.js';
 import type {
@@ -27,7 +33,6 @@ const userSelect = {
   email: true,
   phone: true,
   status: true,
-  mustChangePassword: true,
   lastLoginAt: true,
   lockedUntil: true,
   createdAt: true,
@@ -36,11 +41,15 @@ const userSelect = {
   client: { select: { id: true, code: true, companyName: true } },
 } satisfies Prisma.UserSelect;
 
+/** Accounts only a holder of users.manage_admins (the owner) may create, edit or reset. */
+const PROTECTED_ROLES: readonly string[] = [Role.OWNER, Role.ADMIN];
+
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sessions: SessionsService,
+    private readonly accessControl: AccessControlService,
   ) {}
 
   async findAll(access: AccessContext, query: UsersQueryDto): Promise<Paginated<UserResponseDto>> {
@@ -86,6 +95,7 @@ export class UsersService {
   }
 
   async create(access: AccessContext, dto: CreateUserDto): Promise<UserResponseDto> {
+    await this.assertCanManage(access, [dto.role]);
     const roleId = await this.resolveRole(dto.role, dto.clientId ?? null);
     await this.assertUnique({ username: dto.username, email: dto.email });
     const passwordHash = await hashPassword(dto.password);
@@ -98,7 +108,6 @@ export class UsersService {
           email: dto.email,
           phone: dto.phone,
           status: dto.status ?? 'ACTIVE',
-          mustChangePassword: dto.mustChangePassword ?? false,
           passwordHash,
           roleId,
           clientId: dto.clientId ?? null,
@@ -111,6 +120,9 @@ export class UsersService {
 
   async update(access: AccessContext, id: string, dto: UpdateUserDto): Promise<UserResponseDto> {
     const current = await this.findOne(access, id);
+    const nextRole = dto.role ?? current.role.key;
+    // Editing your own profile is allowed; the self-check below still blocks your own role and status.
+    if (id !== access.userId) await this.assertCanManage(access, [current.role.key, nextRole]);
 
     if (
       id === access.userId &&
@@ -119,24 +131,30 @@ export class UsersService {
       throw new BadRequestException('You cannot deactivate yourself or change your own role');
     }
 
-    // Validate the role/company pair the user will end up with.
-    const nextRole = dto.role ?? current.role.key;
     const nextClientId = dto.clientId !== undefined ? dto.clientId : (current.client?.id ?? null);
     const roleId = await this.resolveRole(nextRole, nextClientId);
     if (dto.email && dto.email !== current.email) await this.assertUnique({ email: dto.email }, id);
 
+    const losesActiveOwner =
+      current.role.key === Role.OWNER &&
+      current.status === 'ACTIVE' &&
+      (dto.status === 'INACTIVE' || nextRole !== Role.OWNER);
+
     const updated = await this.mapUniqueViolation(() =>
-      this.prisma.user.update({
-        where: { id },
-        data: {
-          displayName: dto.displayName,
-          email: dto.email,
-          phone: dto.phone,
-          status: dto.status,
-          roleId,
-          clientId: nextClientId,
-        },
-        select: userSelect,
+      this.prisma.$transaction(async (tx) => {
+        if (losesActiveOwner) await this.assertNotLastOwner(tx, id);
+        return tx.user.update({
+          where: { id },
+          data: {
+            displayName: dto.displayName,
+            email: dto.email,
+            phone: dto.phone,
+            status: dto.status,
+            roleId,
+            clientId: nextClientId,
+          },
+          select: userSelect,
+        });
       }),
     );
 
@@ -144,20 +162,25 @@ export class UsersService {
     const deactivated = dto.status === 'INACTIVE' && current.status !== 'INACTIVE';
     const accessChanged =
       nextRole !== current.role.key || nextClientId !== (current.client?.id ?? null);
-    if (deactivated || accessChanged) await this.sessions.revokeAllForUser(id, 'USER_DEACTIVATED');
+    if (deactivated || accessChanged) {
+      await this.sessions.revokeAllForUser(id, deactivated ? 'USER_DEACTIVATED' : 'ACCESS_CHANGED');
+    }
 
     return updated;
   }
 
-  /** Sets a temporary password, unlocks the account and forces a change at next login. */
+  /**
+   * Sets the user's password, unlocks the account and ends their sessions. Users cannot change
+   * their own password, so this (and create) is the only place a password is ever written.
+   */
   async resetPassword(access: AccessContext, id: string, dto: ResetPasswordDto): Promise<void> {
-    await this.findOne(access, id);
+    const user = await this.findOne(access, id);
+    await this.assertCanManage(access, [user.role.key]);
     await this.prisma.user.update({
       where: { id },
       data: {
         passwordHash: await hashPassword(dto.newPassword),
         passwordChangedAt: new Date(),
-        mustChangePassword: true,
         failedLoginAttempts: 0,
         lockedUntil: null,
       },
@@ -187,6 +210,27 @@ export class UsersService {
       throw new BadRequestException('Staff roles cannot belong to a client');
     }
     return role.id;
+  }
+
+  /** 403 unless the caller holds users.manage_admins whenever an owner or admin account is involved. */
+  private async assertCanManage(access: AccessContext, roleKeys: string[]): Promise<void> {
+    if (!roleKeys.some((key) => PROTECTED_ROLES.includes(key))) return;
+    const scope = await this.accessControl.scopeFor(access.role, Permission.USERS_MANAGE_ADMINS);
+    if (scope === undefined) {
+      throw new ForbiddenException('Only an owner can manage owner and admin accounts');
+    }
+  }
+
+  /**
+   * 409 if `ownerId` is the last active owner. The advisory lock queues concurrent owner
+   * removals so each one sees the other's committed result instead of both passing.
+   */
+  private async assertNotLastOwner(tx: Prisma.TransactionClient, ownerId: string): Promise<void> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('users:last-owner'))`;
+    const others = await tx.user.count({
+      where: { id: { not: ownerId }, role: { key: Role.OWNER }, status: 'ACTIVE', deletedAt: null },
+    });
+    if (others === 0) throw new ConflictException('The system must keep at least one active owner');
   }
 
   private async assertUnique(

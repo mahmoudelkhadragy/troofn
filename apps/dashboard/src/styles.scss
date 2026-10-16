@@ -1,51 +1,49 @@
 @use '@angular/material' as mat;
 @use './styles/theme-colors' as troofn;
 
-html {
-  color-scheme: light;
-  @include mat.theme(
-    (
-      color: (
-        primary: troofn.$primary-palette,
-        tertiary: troofn.$tertiary-palette,
-      ),
-      // Inter has no Arabic glyphs, so Arabic text falls back to IBM Plex Sans Arabic.
-      typography: (
-          plain-family: (
-            'Inter',
-            'IBM Plex Sans Arabic',
-            system-ui,
-            sans-serif,
-          ),
-          brand-family: (
-            'Inter',
-            'IBM Plex Sans Arabic',
-            system-ui,
-            sans-serif,
-          ),
-        ),
-      density: 0,
-    )
-  );
-
-  // Pin the primary color to the exact Troofn brand maroon.
-  --mat-sys-primary: #7b1e2b;
-}
-
 html,
 body {
   height: 100%;
 }
 
-body {
-  margin: 0;
-  font-family: var(--mat-sys-body-large-font);
-  background: var(--mat-sys-surface-container-low);
-  color: var(--mat-sys-on-surface);
-  -webkit-font-smoothing: antialiased;
+// The design font. Paths are relative to this file, so the build bundles and hashes them.
+@font-face {
+  font-family: 'Fundamental Brigade';
+  src: url('./assets/fonts/shaheenproArabic-Light.otf') format('opentype');
+  font-weight: 300 400;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* Directional icons (arrows, chevrons) flip automatically in RTL. */
-[dir='rtl'] .tf-flip-rtl {
-  transform: scaleX(-1);
+@font-face {
+  font-family: 'Fundamental Brigade';
+  src: url('./assets/fonts/shaheenproArabic-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Fundamental Brigade';
+  src: url('./assets/fonts/shaheenproArabic-Bold.otf') format('opentype');
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+// Serif display face used for the project timeline title and legend.
+@font-face {
+  font-family: 'Lyon Arabic Display';
+  src: url('./assets/fonts/Lyon Arabic Display Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lyon Arabic Display';
+  src: url('./assets/fonts/Lyon Arabic Display Bold.ttf') format('truetype');
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
 }

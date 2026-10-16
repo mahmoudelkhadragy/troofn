@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import type { ClientApp } from '@troofn/shared';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../../src/app.module.js';
@@ -18,14 +19,16 @@ export async function createTestApp(): Promise<INestApplication<App>> {
   return app;
 }
 
+/** Signs in through the API. MOBILE by default: every role may use the mobile app. */
 export async function login(
   app: INestApplication<App>,
   username: string,
   password = DEMO_PASSWORD,
+  clientApp: ClientApp = 'MOBILE',
 ): Promise<{ accessToken: string; refreshToken: string }> {
   const res = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
-    .send({ username, password })
+    .send({ username, password, app: clientApp })
     .expect(200);
   return res.body.data;
 }
@@ -42,7 +45,6 @@ export async function createTestUser(
     role?: string;
     clientCode?: string;
     status?: 'ACTIVE' | 'INACTIVE';
-    mustChangePassword?: boolean;
     password?: string;
   },
 ): Promise<{ id: string; username: string }> {
@@ -61,7 +63,6 @@ export async function createTestUser(
       roleId: role.id,
       clientId: client?.id ?? null,
       status: overrides.status ?? 'ACTIVE',
-      mustChangePassword: overrides.mustChangePassword ?? false,
     },
     select: { id: true, username: true },
   });

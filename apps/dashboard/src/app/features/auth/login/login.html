@@ -1,0 +1,127 @@
+<main
+  lang="en"
+  dir="ltr"
+  class="login-page relative flex min-h-dvh flex-col overflow-x-hidden font-brigade text-white"
+>
+  <div class="pointer-events-none absolute inset-0 z-0 bg-black-layout"></div>
+
+  <section
+    class="z-10 flex flex-1 flex-col items-center justify-start px-4 pb-4 pt-[clamp(0.75rem,calc((100dvh-516px)*0.52),10.875rem)]"
+    aria-labelledby="login-heading"
+  >
+    <!-- Vertical spacing follows the screen height: on a tall screen it is the Figma spacing (logo
+         at 174px, footer 93px from the bottom); on a short one it shrinks so the page never scrolls.
+         516px is the height of the content itself, so the rest is shared between top and bottom. -->
+    <img
+      class="block h-auto w-[min(390px,80vw)] short:w-[min(300px,80vw)]"
+      src="/assets/icons/logo.svg"
+      width="390"
+      height="70"
+      alt="Troofn"
+    />
+    <h1
+      class="mb-0 mt-[30px] text-center text-5xl font-normal leading-[60px] short:mt-4 short:text-4xl short:leading-[48px]"
+      id="login-heading"
+    >
+      Log In
+    </h1>
+
+    <form
+      class="mt-10 flex w-full max-w-[536px] flex-col short:mt-6"
+      [formGroup]="loginForm"
+      (ngSubmit)="submit()"
+      novalidate
+    >
+      <!-- Error messages never change the page height: field errors are absolutely positioned in
+           the 28px gap below each field, and the login error has its own fixed-height zone. -->
+      <div class="flex flex-col gap-7 short:gap-6">
+        <tf-text-input
+          id="username"
+          label="User Name"
+          placeholder="e.g. Mohamed"
+          autocomplete="username"
+          [required]="true"
+          [error]="errorFor('username')"
+          formControlName="username"
+        />
+        <tf-text-input
+          id="password"
+          label="Password"
+          type="password"
+          placeholder="*********"
+          autocomplete="current-password"
+          [required]="true"
+          [error]="errorFor('password')"
+          formControlName="password"
+        />
+      </div>
+      <div class="min-h-12 pt-3 short:min-h-10 max-phone:min-h-16">
+        @if (authError()) {
+          <p class="m-0 text-center text-xs leading-4 text-red-400" role="alert">
+            {{ authError() }}
+          </p>
+        }
+      </div>
+      <tf-button
+        class="mx-auto block w-[294px] max-w-full"
+        label="Log In"
+        type="submit"
+        size="medium"
+        [loading]="loading()"
+        [disabled]="loading()"
+        background="bg-red-button"
+        color="text-white"
+      />
+    </form>
+  </section>
+
+  <footer
+    class="relative z-10 flex w-full items-center justify-between gap-4 px-20 pb-[clamp(0.75rem,calc((100dvh-516px)*0.28),93px)] text-gray-icon max-tablet:px-8 max-tablet:pb-10 max-phone:flex-col max-phone:items-start max-phone:px-5 max-phone:pb-5"
+  >
+    <nav class="flex items-center gap-5" aria-label="Social media">
+      <a
+        class="grid place-items-center"
+        href="https://instagram.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Instagram"
+      >
+        <img src="/assets/icons/instagram.svg" width="26" height="27" alt="" />
+      </a>
+      <a
+        class="grid place-items-center"
+        href="https://maps.google.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Location"
+      >
+        <img src="/assets/icons/pin.svg" width="22" height="29" alt="" />
+      </a>
+      <a
+        class="grid place-items-center"
+        href="https://youtube.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="YouTube"
+      >
+        <img src="/assets/icons/youtube.svg" width="32" height="26" alt="" />
+      </a>
+      <a
+        class="grid place-items-center"
+        href="https://wa.me"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="WhatsApp"
+      >
+        <img src="/assets/icons/whatsapp.svg" width="33" height="32" alt="" />
+      </a>
+    </nav>
+    <div
+      class="flex flex-wrap items-center gap-6 text-xl text-[#a3a3a3] max-phone:gap-4 max-phone:text-base"
+    >
+      <a class="text-inherit no-underline" href="mailto:info@troofn.com">Info@troofn.com</a>
+      <span class="h-6 w-px bg-[#a3a3a3]" aria-hidden="true"></span>
+      <a class="text-inherit no-underline" href="mailto:jobs@troofn.com">jobs@troofn.com</a>
+    </div>
+  </footer>
+</main>

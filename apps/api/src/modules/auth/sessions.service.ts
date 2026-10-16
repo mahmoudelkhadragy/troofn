@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import type { SessionPlatform } from '@troofn/shared';
+import type { ClientApp, SessionPlatform } from '@troofn/shared';
 import { PrismaService } from '../../database/index.js';
 import type { SessionRevokeReason } from '../../generated/prisma/enums.js';
 import { TokenService } from './token.service.js';
@@ -27,14 +27,16 @@ export class SessionsService {
 
   async create(
     userId: string,
+    app: ClientApp,
     meta: SessionMeta,
-  ): Promise<{ sessionId: string; refreshToken: string; expiresAt: Date }> {
+  ): Promise<{ sessionId: string; app: ClientApp; refreshToken: string; expiresAt: Date }> {
     const expiresAt = this.tokens.refreshTokenExpiry();
     // The id is part of the token, so create the row first, then store the token's hash.
     return this.prisma.$transaction(async (tx) => {
       const session = await tx.userSession.create({
         data: {
           userId,
+          app,
           refreshTokenHash: 'pending',
           platform: meta.platform ?? 'UNKNOWN',
           deviceName: meta.deviceName,
@@ -46,14 +48,18 @@ export class SessionsService {
       });
       const { token, hash } = this.tokens.issueRefreshToken(session.id);
       await tx.userSession.update({ where: { id: session.id }, data: { refreshTokenHash: hash } });
-      return { sessionId: session.id, refreshToken: token, expiresAt };
+      return { sessionId: session.id, app, refreshToken: token, expiresAt };
     });
   }
 
-  /** Validates a refresh token and replaces it. Returns the session's user id. */
-  async rotate(
-    refreshToken: string,
-  ): Promise<{ userId: string; sessionId: string; refreshToken: string; expiresAt: Date }> {
+  /** Validates a refresh token and replaces it. The app comes from the row, never from the request. */
+  async rotate(refreshToken: string): Promise<{
+    userId: string;
+    sessionId: string;
+    refreshToken: string;
+    expiresAt: Date;
+    app: ClientApp;
+  }> {
     const parsed = this.tokens.parseRefreshToken(refreshToken);
     if (!parsed) throw new UnauthorizedException(INVALID_REFRESH);
 
@@ -76,7 +82,13 @@ export class SessionsService {
     });
     if (count !== 1) throw new UnauthorizedException(INVALID_REFRESH);
 
-    return { userId: session.userId, sessionId: session.id, refreshToken: token, expiresAt };
+    return {
+      userId: session.userId,
+      sessionId: session.id,
+      refreshToken: token,
+      expiresAt,
+      app: session.app,
+    };
   }
 
   async revoke(sessionId: string, reason: SessionRevokeReason): Promise<void> {

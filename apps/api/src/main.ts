@@ -2,12 +2,13 @@ import { ValidationPipe, VersioningType, type INestApplication } from '@nestjs/c
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { API_PREFIX, API_VERSION } from '@troofn/shared';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import type { AppConfig } from './config/index.js';
+import { buildOpenApiDocument } from './openapi.js';
 
 /** Global HTTP setup — shared by main.ts and the e2e tests. */
 export function configureApp(app: INestApplication): void {
@@ -23,13 +24,7 @@ export function configureApp(app: INestApplication): void {
 }
 
 function setupSwagger(app: INestApplication): void {
-  const config = new DocumentBuilder()
-    .setTitle('Troofn Business Gate API')
-    .setDescription('REST API for the Troofn dashboard and mobile app')
-    .setVersion(API_VERSION)
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup(`${API_PREFIX}/docs`, app, SwaggerModule.createDocument(app, config));
+  SwaggerModule.setup(`${API_PREFIX}/docs`, app, buildOpenApiDocument(app));
 }
 
 async function bootstrap(): Promise<void> {
@@ -37,8 +32,10 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService<AppConfig, true>);
 
   app.useLogger(app.get(Logger));
-  // Behind Nginx on the same host: trust it for the client IP (rate limits, session IPs).
-  app.set('trust proxy', 'loopback');
+  // Trust the reverse proxy for the client IP (rate limits, session IPs). 'loopback'
+  // covers nginx on the same host; in Docker the dashboard's nginx is on the bridge
+  // network, so TRUST_PROXY adds 'uniquelocal' there. See deploy/docker-compose.yml.
+  app.set('trust proxy', config.get('app.trustProxy', { infer: true }));
   app.use(helmet());
   app.enableCors({ origin: config.get('app.corsOrigins', { infer: true }), credentials: true });
   app.enableShutdownHooks();

@@ -1,0 +1,13 @@
+<ul class="m-0 grid list-none grid-cols-2 gap-3.5 p-0 tablet:grid-cols-3 desktop:grid-cols-5">
+  @for (stat of stats(); track stat.label) {
+    <li
+      class="flex h-[105px] flex-col items-center justify-center gap-[5px] rounded-xl border border-white/7 bg-black-light"
+    >
+      <span class="text-[13px] leading-[18px] text-gray-icon">{{ stat.label }}</span>
+      <span class="text-xl font-bold leading-7 text-white" dir="ltr">
+        {{ stat.amount | number }} <span class="text-base font-medium">{{ stat.currency }}</span>
+      </span>
+      <span class="text-sm leading-[19px] text-accent" dir="ltr">{{ stat.note }}</span>
+    </li>
+  }
+</ul>

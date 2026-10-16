@@ -1,9 +1,9 @@
-import { ForbiddenException, UnauthorizedException, type ExecutionContext } from '@nestjs/common';
+import { UnauthorizedException, type ExecutionContext } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { type JwtPayload, Role } from '@troofn/shared';
-import { AllowPendingPasswordChange, Public } from '../../../common/decorators/index.js';
+import { Public } from '../../../common/decorators/index.js';
 import { TokenService } from '../token.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 
@@ -20,13 +20,12 @@ const payload: JwtPayload = {
   role: Role.ADMIN,
   clientId: null,
   sid: '0199c3a0-0000-7000-8000-0000000000aa',
-  mcp: false,
+  app: 'DASHBOARD',
 };
 
 class Routes {
   protectedRoute() {}
   @Public() publicRoute() {}
-  @AllowPendingPasswordChange() changePasswordRoute() {}
 }
 
 function contextFor(handler: keyof Routes, authorization?: string) {
@@ -67,19 +66,5 @@ describe('JwtAuthGuard', () => {
     const { context, request } = contextFor('protectedRoute', `Bearer ${token}`);
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request.user).toEqual(payload);
-  });
-
-  describe('when the user must change their password', () => {
-    it('blocks ordinary routes (403)', async () => {
-      const token = await tokens.signAccessToken({ ...payload, mcp: true });
-      const { context } = contextFor('protectedRoute', `Bearer ${token}`);
-      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(ForbiddenException);
-    });
-
-    it('allows routes marked @AllowPendingPasswordChange()', async () => {
-      const token = await tokens.signAccessToken({ ...payload, mcp: true });
-      const { context } = contextFor('changePasswordRoute', `Bearer ${token}`);
-      await expect(guard.canActivate(context)).resolves.toBe(true);
-    });
   });
 });

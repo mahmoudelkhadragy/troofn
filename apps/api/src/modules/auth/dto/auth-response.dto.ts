@@ -23,7 +23,6 @@ export class AuthUserDto implements AuthUser {
   @ApiProperty({ example: 'admin' }) role: Role;
   @ApiProperty({ type: RoleNameDto }) roleName: RoleNameDto;
   @ApiPropertyOptional({ type: AuthClientDto, nullable: true }) client: AuthClientDto | null;
-  @ApiProperty() mustChangePassword: boolean;
   @ApiPropertyOptional({ type: String, format: 'date-time', nullable: true })
   lastLoginAt: string | null;
   @ApiProperty({

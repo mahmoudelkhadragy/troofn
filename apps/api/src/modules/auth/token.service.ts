@@ -2,7 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import type { JwtPayload } from '@troofn/shared';
+import { CLIENT_APPS, type JwtPayload } from '@troofn/shared';
 import type { AppConfig } from '../../config/index.js';
 
 const ISSUER = 'troofn-api';
@@ -45,7 +45,7 @@ export class TokenService {
     );
   }
 
-  /** Throws 401 for a forged, expired or foreign token. */
+  /** Throws 401 for a forged, expired or foreign token, or one without a valid `app` claim. */
   async verifyAccessToken(token: string): Promise<JwtPayload> {
     try {
       const claims = await this.jwt.verifyAsync<JwtPayload>(token, {
@@ -53,12 +53,14 @@ export class TokenService {
         issuer: ISSUER,
         audience: AUDIENCE,
       });
+      // Tokens signed before the `app` claim existed are refused; the client refreshes and gets a new one.
+      if (!CLIENT_APPS.includes(claims.app)) throw new Error('Missing app claim');
       return {
         sub: claims.sub,
         role: claims.role,
         clientId: claims.clientId ?? null,
         sid: claims.sid,
-        mcp: claims.mcp === true,
+        app: claims.app,
       };
     } catch {
       throw new UnauthorizedException('Invalid or expired access token');
