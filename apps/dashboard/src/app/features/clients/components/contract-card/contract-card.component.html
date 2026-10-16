@@ -1,0 +1,22 @@
+<h2 class="m-0 text-base font-bold leading-6 text-ink">معلومات العقد</h2>
+
+<dl class="m-0 mt-2.5">
+  <div class="flex h-11 items-center justify-between border-b border-line">
+    <dt class="text-sm text-muted">رمز العقد</dt>
+    <dd class="m-0 text-xs text-ink" dir="ltr">{{ contract().code }}</dd>
+  </div>
+  <div class="flex h-11 items-center justify-between border-b border-line">
+    <dt class="text-sm text-muted">بداية العقد</dt>
+    <dd class="m-0 text-xs text-ink" dir="ltr">
+      {{ contract().startDate ? (contract().startDate | date: 'dd/MM/yyyy') : '—' }}
+    </dd>
+  </div>
+  <div class="flex h-11 items-center justify-between border-b border-line">
+    <dt class="text-sm text-muted">نهاية العقد</dt>
+    <dd class="m-0 text-xs text-ink" dir="ltr">{{ contract().endDate | date: 'dd/MM/yyyy' }}</dd>
+  </div>
+  <div class="flex h-11 items-center justify-between">
+    <dt class="text-sm text-muted">قيمة العقد السنوية</dt>
+    <dd class="m-0 text-xs text-ink" dir="ltr">{{ contract().annualValue | number }} ﷼</dd>
+  </div>
+</dl>

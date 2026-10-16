@@ -24,6 +24,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
+    "openapi:export": "nest build && node dist/scripts/export-openapi.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {

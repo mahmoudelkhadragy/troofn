@@ -34,7 +34,7 @@ describe('Auth (e2e)', () => {
     it('returns tokens and the user profile with permissions', async () => {
       const res = await http()
         .post('/api/v1/auth/login')
-        .send({ username: 'admin', password: DEMO_PASSWORD, platform: 'WEB' })
+        .send({ username: 'admin', password: DEMO_PASSWORD, app: 'DASHBOARD', platform: 'WEB' })
         .expect(200);
 
       const data = res.body.data;
@@ -48,7 +48,7 @@ describe('Auth (e2e)', () => {
     it('never returns password or token hashes', async () => {
       const res = await http()
         .post('/api/v1/auth/login')
-        .send({ username: 'wejnad.owner', password: DEMO_PASSWORD })
+        .send({ username: 'wejnad.owner', password: DEMO_PASSWORD, app: 'MOBILE' })
         .expect(200);
       const body = JSON.stringify(res.body);
       expect(body).not.toMatch(/passwordHash|password_hash|refreshTokenHash|\$argon2/);
@@ -57,25 +57,28 @@ describe('Auth (e2e)', () => {
     it('treats the username case-insensitively', async () => {
       await http()
         .post('/api/v1/auth/login')
-        .send({ username: '  ADMIN ', password: DEMO_PASSWORD })
+        .send({ username: '  ADMIN ', password: DEMO_PASSWORD, app: 'MOBILE' })
         .expect(200);
     });
 
     it('gives the same 401 for a wrong password and an unknown user', async () => {
       const wrong = await http()
         .post('/api/v1/auth/login')
-        .send({ username: 'admin', password: 'Wrong-pass1' })
+        .send({ username: 'admin', password: 'Wrong-pass1', app: 'MOBILE' })
         .expect(401);
       const unknown = await http()
         .post('/api/v1/auth/login')
-        .send({ username: 'nobody.here', password: 'Wrong-pass1' })
+        .send({ username: 'nobody.here', password: 'Wrong-pass1', app: 'MOBILE' })
         .expect(401);
       expect(wrong.body.error.message).toBe('Invalid username or password');
       expect(unknown.body.error.message).toBe(wrong.body.error.message);
     });
 
     it('validates the body (400)', async () => {
-      await http().post('/api/v1/auth/login').send({ username: 'admin' }).expect(400);
+      await http()
+        .post('/api/v1/auth/login')
+        .send({ username: 'admin', app: 'MOBILE' })
+        .expect(400);
     });
 
     it('records the session with device details', async () => {
@@ -85,6 +88,7 @@ describe('Auth (e2e)', () => {
         .send({
           username: 'wejnad.marketing',
           password: DEMO_PASSWORD,
+          app: 'MOBILE',
           platform: 'IOS',
           deviceName: 'iPhone 15 Pro',
         })
@@ -92,6 +96,7 @@ describe('Auth (e2e)', () => {
       const sessionId = res.body.data.refreshToken.split('.')[0];
       const session = await prisma.userSession.findUniqueOrThrow({ where: { id: sessionId } });
       expect(session).toMatchObject({
+        app: 'MOBILE',
         platform: 'IOS',
         deviceName: 'iPhone 15 Pro',
         userAgent: 'TroofnApp/1.0',
@@ -102,7 +107,7 @@ describe('Auth (e2e)', () => {
     it('refuses users of an inactive client (403)', async () => {
       const res = await http()
         .post('/api/v1/auth/login')
-        .send({ username: 'nukhba.owner', password: DEMO_PASSWORD })
+        .send({ username: 'nukhba.owner', password: DEMO_PASSWORD, app: 'MOBILE' })
         .expect(403);
       expect(res.body.error.message).toMatch(/client/i);
     });
@@ -114,7 +119,7 @@ describe('Auth (e2e)', () => {
       });
       await http()
         .post('/api/v1/auth/login')
-        .send({ username: 'jabr.owner', password: DEMO_PASSWORD })
+        .send({ username: 'jabr.owner', password: DEMO_PASSWORD, app: 'MOBILE' })
         .expect(403);
       await prisma.client.update({ where: { code: 'TID00S2J' }, data: { appAccessEnabled: true } });
     });
@@ -123,7 +128,7 @@ describe('Auth (e2e)', () => {
       await createTestUser(app, { username: 'e2e.inactive', status: 'INACTIVE' });
       await http()
         .post('/api/v1/auth/login')
-        .send({ username: 'e2e.inactive', password: DEMO_PASSWORD })
+        .send({ username: 'e2e.inactive', password: DEMO_PASSWORD, app: 'MOBILE' })
         .expect(403);
     });
 
@@ -132,12 +137,12 @@ describe('Auth (e2e)', () => {
       for (let i = 0; i < 5; i++) {
         await http()
           .post('/api/v1/auth/login')
-          .send({ username: 'e2e.lockme', password: 'Wrong-pass1' })
+          .send({ username: 'e2e.lockme', password: 'Wrong-pass1', app: 'MOBILE' })
           .expect(401);
       }
       await http()
         .post('/api/v1/auth/login')
-        .send({ username: 'e2e.lockme', password: DEMO_PASSWORD })
+        .send({ username: 'e2e.lockme', password: DEMO_PASSWORD, app: 'MOBILE' })
         .expect(423);
     });
 
@@ -146,13 +151,78 @@ describe('Auth (e2e)', () => {
       for (let i = 0; i < 3; i++) {
         await http()
           .post('/api/v1/auth/login')
-          .send({ username: 'e2e.reset', password: 'Wrong-pass1' })
+          .send({ username: 'e2e.reset', password: 'Wrong-pass1', app: 'MOBILE' })
           .expect(401);
       }
       await login(app, 'e2e.reset');
       const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
       expect(row.failedLoginAttempts).toBe(0);
       expect(row.lastLoginAt).not.toBeNull();
+    });
+  });
+
+  describe('app access (dashboard vs mobile app)', () => {
+    const signIn = (username: string, app?: string, password = DEMO_PASSWORD) =>
+      http().post('/api/v1/auth/login').send({ username, password, app });
+    const claimsOf = (token: string) =>
+      JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+
+    it.each(['owner', 'admin'])('lets %s sign in to the dashboard', async (username) => {
+      const res = await signIn(username, 'DASHBOARD').expect(200);
+      expect(claimsOf(res.body.data.accessToken).app).toBe('DASHBOARD');
+    });
+
+    it.each(['fahad.mm', 'abdullah.writer', 'ahmed.employee', 'wejnad.owner', 'wejnad.accountant'])(
+      'refuses %s on the dashboard (403 APP_NOT_ALLOWED)',
+      async (username) => {
+        const res = await signIn(username, 'DASHBOARD').expect(403);
+        expect(res.body.error.details).toEqual({ code: 'APP_NOT_ALLOWED' });
+      },
+    );
+
+    it.each(['owner', 'admin', 'fahad.mm', 'wejnad.owner'])(
+      'lets %s sign in to the mobile app',
+      async (username) => {
+        await signIn(username, 'MOBILE').expect(200);
+      },
+    );
+
+    it('answers a wrong password with 401, never revealing the dashboard rule', async () => {
+      await createTestUser(app, { username: 'e2e.app.wrongpw', role: 'marketing_manager' });
+      const res = await signIn('e2e.app.wrongpw', 'DASHBOARD', 'Wrong-pass1').expect(401);
+      expect(res.body.error.message).toBe('Invalid username or password');
+    });
+
+    it.each([undefined, 'WEB', 'dashboard'])('requires a valid app (%s → 400)', async (app) => {
+      await signIn('admin', app).expect(400);
+    });
+
+    it('keeps the app from the session row on refresh', async () => {
+      const first = (await signIn('admin', 'DASHBOARD').expect(200)).body.data;
+      const res = await http()
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: first.refreshToken })
+        .expect(200);
+      expect(claimsOf(res.body.data.accessToken).app).toBe('DASHBOARD');
+    });
+
+    it('ends a dashboard session on refresh once the role loses dashboard access', async () => {
+      await createTestUser(app, { username: 'e2e.demoted', role: 'admin' });
+      const first = (await signIn('e2e.demoted', 'DASHBOARD').expect(200)).body.data;
+      const employee = await prisma.role.findUniqueOrThrow({ where: { key: 'employee' } });
+      await prisma.user.update({
+        where: { username: 'e2e.demoted' },
+        data: { roleId: employee.id },
+      });
+
+      await http()
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: first.refreshToken })
+        .expect(401);
+      const session = await prisma.userSession.findUniqueOrThrow({
+        where: { id: first.refreshToken.split('.')[0] },
+      });
+      expect(session.revokeReason).toBe('ACCESS_CHANGED');
     });
   });
 
@@ -248,70 +318,29 @@ describe('Auth (e2e)', () => {
     });
   });
 
-  describe('POST /auth/change-password', () => {
-    it('rejects a wrong current password (400)', async () => {
-      await createTestUser(app, { username: 'e2e.pw.wrong' });
-      const { accessToken } = await login(app, 'e2e.pw.wrong');
-      await http()
-        .post('/api/v1/auth/change-password')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send({ currentPassword: 'Not-it-123', newPassword: 'BrandNew123' })
-        .expect(400);
-    });
+  describe('users cannot change their own password', () => {
+    it.each(['owner', 'admin', 'fahad.mm', 'wejnad.owner'])(
+      'there is no change-password endpoint for %s (404)',
+      async (username) => {
+        const { accessToken } = await login(app, username);
+        await http()
+          .post('/api/v1/auth/change-password')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ currentPassword: DEMO_PASSWORD, newPassword: 'BrandNew123' })
+          .expect(404);
+      },
+    );
 
-    it('rejects a weak new password (400)', async () => {
-      await createTestUser(app, { username: 'e2e.pw.weak' });
-      const { accessToken } = await login(app, 'e2e.pw.weak');
-      await http()
-        .post('/api/v1/auth/change-password')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send({ currentPassword: DEMO_PASSWORD, newPassword: 'short' })
-        .expect(400);
-    });
-
-    it('changes the password, returns fresh tokens and logs out other sessions', async () => {
-      await createTestUser(app, { username: 'e2e.pw.ok' });
-      const current = await login(app, 'e2e.pw.ok');
-      const other = await login(app, 'e2e.pw.ok');
-
-      const res = await http()
-        .post('/api/v1/auth/change-password')
-        .set('Authorization', `Bearer ${current.accessToken}`)
-        .send({ currentPassword: DEMO_PASSWORD, newPassword: 'BrandNew123' })
-        .expect(200);
-      expect(res.body.data.accessToken).toEqual(expect.any(String));
-
-      await http()
-        .post('/api/v1/auth/refresh')
-        .send({ refreshToken: other.refreshToken })
-        .expect(401);
-      await http()
-        .post('/api/v1/auth/refresh')
-        .send({ refreshToken: res.body.data.refreshToken })
-        .expect(200);
-      await login(app, 'e2e.pw.ok', 'BrandNew123');
-    });
-
-    it('clears "must change password" and unblocks the user', async () => {
-      await createTestUser(app, { username: 'e2e.pw.forced', mustChangePassword: true });
+    it('the profile no longer carries a "must change password" flag', async () => {
       const res = await http()
         .post('/api/v1/auth/login')
-        .send({ username: 'e2e.pw.forced', password: DEMO_PASSWORD })
+        .send({ username: 'admin', password: DEMO_PASSWORD, app: 'DASHBOARD' })
         .expect(200);
-      expect(res.body.data.user.mustChangePassword).toBe(true);
-
-      // /auth/me stays reachable so the app can show the "change your password" screen.
-      await http()
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${res.body.data.accessToken}`)
-        .expect(200);
-
-      const changed = await http()
-        .post('/api/v1/auth/change-password')
-        .set('Authorization', `Bearer ${res.body.data.accessToken}`)
-        .send({ currentPassword: DEMO_PASSWORD, newPassword: 'BrandNew123' })
-        .expect(200);
-      expect(changed.body.data.user.mustChangePassword).toBe(false);
+      expect(res.body.data.user).not.toHaveProperty('mustChangePassword');
+      const claims = JSON.parse(
+        Buffer.from(res.body.data.accessToken.split('.')[1], 'base64url').toString(),
+      );
+      expect(claims).not.toHaveProperty('mcp');
     });
   });
 });

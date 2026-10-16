@@ -1,0 +1,91 @@
+<aside class="flex h-full w-[279px] shrink-0 flex-col bg-black-light max-tablet:w-[76px]">
+  <div class="flex h-[71px] shrink-0 items-center ps-5 max-tablet:justify-center max-tablet:ps-0">
+    <img
+      class="h-auto w-[142px] max-tablet:w-[52px]"
+      src="/assets/icons/logo.svg"
+      width="142"
+      height="25"
+      alt="Troofn"
+    />
+  </div>
+
+  <nav
+    class="no-scrollbar flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 pt-[7px]"
+    aria-label="العملاء"
+  >
+    @for (client of clients(); track client.id) {
+      <a
+        #link="routerLinkActive"
+        [routerLink]="['/dashboard', 'clients', client.id]"
+        routerLinkActive="bg-[#bcbcbc]/10"
+        class="relative flex h-[63px] shrink-0 items-center gap-3.5 rounded-xl ps-[13px] pe-3 text-ink no-underline max-tablet:justify-center max-tablet:px-0"
+        [attr.title]="client.name"
+      >
+        <span
+          class="relative grid size-[41px] shrink-0 place-items-center rounded-lg text-[15px] text-muted"
+          [class]="link.isActive ? 'bg-[#0f4d42] text-ink' : 'bg-avatar'"
+          aria-hidden="true"
+        >
+          {{ letterOf(client.name) }}
+          <i
+            class="absolute -right-0.5 -top-0.5 size-2 rounded-full border-2 border-[#1d1d1d] not-italic"
+            [class]="client.status === 'ACTIVE' ? 'bg-live' : 'bg-brand'"
+          ></i>
+        </span>
+        <span class="min-w-0 flex-1 max-tablet:hidden">
+          <span class="block truncate text-[15px] font-medium leading-5">{{ client.name }}</span>
+          <span class="block truncate text-[13px] leading-[18px] text-muted">{{
+            client.sector
+          }}</span>
+        </span>
+        @if (client.unreadCount > 0) {
+          <i
+            class="grid size-[22px] shrink-0 place-items-center rounded-full bg-brand text-[11px] not-italic leading-none text-white max-tablet:hidden"
+            [attr.aria-label]="client.unreadCount + ' غير مقروء'"
+            >{{ client.unreadCount }}</i
+          >
+        }
+        @if (link.isActive) {
+          <i
+            class="absolute inset-y-[3px] left-0 w-[3px] rounded-full bg-brand"
+            aria-hidden="true"
+          ></i>
+        }
+      </a>
+    }
+
+    <button
+      type="button"
+      class="mt-0 flex h-[43px] shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-white bg-transparent text-sm text-ink max-tablet:px-0"
+    >
+      <span class="material-symbols-outlined text-lg" aria-hidden="true">add</span>
+      <span class="max-tablet:hidden">إضافة عميل جديد</span>
+      <span class="sr-only tablet:hidden">إضافة عميل جديد</span>
+    </button>
+  </nav>
+
+  <footer
+    class="flex h-[94px] shrink-0 items-center gap-1.5 border-t border-line ps-6 pe-[21px] max-tablet:flex-col max-tablet:justify-center max-tablet:gap-2 max-tablet:px-0"
+  >
+    <span
+      class="grid size-[35px] shrink-0 place-items-center rounded-full bg-brand text-[15px] text-white"
+      aria-hidden="true"
+      >{{ userLetter() }}</span
+    >
+    <span class="min-w-0 flex-1 max-tablet:hidden">
+      <span class="block truncate text-[15px] leading-5">{{ user()?.displayName }}</span>
+      <span class="block truncate text-xs leading-4 text-muted">{{ user()?.roleName?.ar }}</span>
+    </span>
+    <button
+      type="button"
+      class="grid size-[42px] shrink-0 cursor-pointer place-items-center rounded-lg border border-[#b1b1b1] bg-transparent text-ink"
+      aria-label="تسجيل الخروج"
+      [disabled]="loggingOut()"
+      (click)="logout()"
+    >
+      <span class="material-symbols-outlined text-[22px] rtl:-scale-x-100" aria-hidden="true"
+        >logout</span
+      >
+    </button>
+  </footer>
+</aside>

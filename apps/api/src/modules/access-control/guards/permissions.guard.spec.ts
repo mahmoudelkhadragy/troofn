@@ -70,10 +70,18 @@ describe('PermissionsGuard', () => {
     );
   });
 
-  it('lets routes without @RequirePermissions through for any signed-in user', async () => {
+  it('lets @Authenticated() routes through for any signed-in user', async () => {
     await expect(
       guard.canActivate(contextFor('anyAuthenticatedUser', employee).context),
     ).resolves.toBe(true);
+  });
+
+  it('denies a route that declares nothing, even to an admin (deny by default)', async () => {
+    for (const user of [admin, owner, employee]) {
+      await expect(guard.canActivate(contextFor('forgotten', user).context)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    }
   });
 
   it('skips @Public() routes', async () => {

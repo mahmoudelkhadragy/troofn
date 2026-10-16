@@ -4,7 +4,7 @@ import { CreateUserDto } from './create-user.dto.js';
 
 /** Username and password are not editable here (password: POST /users/:id/reset-password). */
 export class UpdateUserDto extends PartialType(
-  OmitType(CreateUserDto, ['username', 'password', 'clientId', 'mustChangePassword'] as const),
+  OmitType(CreateUserDto, ['username', 'password', 'clientId'] as const),
 ) {
   @ApiPropertyOptional({
     format: 'uuid',

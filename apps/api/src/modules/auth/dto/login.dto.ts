@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { SessionPlatform } from '@troofn/shared';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
+import { CLIENT_APPS, type ClientApp, type SessionPlatform } from '@troofn/shared';
 import { Transform } from 'class-transformer';
 import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
@@ -19,12 +19,21 @@ export class LoginDto {
   @MaxLength(200)
   password: string;
 
-  @ApiPropertyOptional({ enum: PLATFORMS, default: 'UNKNOWN' })
+  @ApiProperty({
+    enum: CLIENT_APPS,
+    description: 'Which app is signing in. Only owner and admin may use DASHBOARD.',
+  })
+  @IsIn(CLIENT_APPS)
+  app: ClientApp;
+
+  /** Optional, recorded on the session. Accepted but left out of the API docs. */
+  @ApiHideProperty()
   @IsOptional()
   @IsIn(PLATFORMS)
   platform?: SessionPlatform;
 
-  @ApiPropertyOptional({ example: 'iPhone 15 Pro', description: 'Shown in the session list' })
+  /** Optional, shown in the session list. Accepted but left out of the API docs. */
+  @ApiHideProperty()
   @IsOptional()
   @IsString()
   @MaxLength(120)

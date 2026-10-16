@@ -1,0 +1,27 @@
+<!-- The grey base line is an inset shadow, so the active tab's white underline simply covers it and
+     nothing sticks out of the box (which would add a vertical scrollbar next to overflow-x). -->
+<nav
+  class="no-scrollbar mt-[29px] flex overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_#212121]"
+  aria-label="أقسام العميل"
+>
+  @for (tab of tabs; track tab.label) {
+    <button
+      type="button"
+      class="flex shrink-0 cursor-pointer items-center gap-[5px] whitespace-nowrap border-0 border-b-2 bg-transparent px-[18px] pb-[13px] text-base leading-[21px]"
+      [class]="
+        tab.label === activeTab
+          ? 'border-white font-bold text-ink'
+          : 'border-transparent text-muted'
+      "
+      [attr.aria-current]="tab.label === activeTab ? 'page' : null"
+    >
+      {{ tab.label }}
+      @if (tab.badge) {
+        <i
+          class="grid size-[21px] place-items-center rounded-full bg-brand text-[11px] not-italic leading-none text-white"
+          >{{ tab.badge }}</i
+        >
+      }
+    </button>
+  }
+</nav>

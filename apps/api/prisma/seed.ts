@@ -6,16 +6,17 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
+import { syncRbac } from '../src/modules/access-control/rbac.sync.js';
 import { isStrongPassword } from '../src/modules/auth/password.js';
-import { seedDemoData } from './seed/demo.seed.js';
-import { seedRbac } from './seed/rbac.seed.js';
+import { seedDemoData } from '../src/seed/demo.seed.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
 
 async function main(): Promise<void> {
-  await seedRbac(prisma);
+  const { roles, permissions, grants } = await syncRbac(prisma);
+  console.log(`RBAC: ${roles} roles, ${permissions} permissions, ${grants} grants`);
 
   if (process.env.NODE_ENV === 'production') {
     console.log('Production: demo data skipped.');
@@ -26,7 +27,8 @@ async function main(): Promise<void> {
   if (!password || !isStrongPassword(password)) {
     throw new Error('Set SEED_DEFAULT_PASSWORD (8+ chars, a letter and a digit) in apps/api/.env');
   }
-  await seedDemoData(prisma, password);
+  const { clients, users } = await seedDemoData(prisma, password, { overwrite: true });
+  console.log(`Demo: ${clients} clients, ${users} users`);
 }
 
 try {

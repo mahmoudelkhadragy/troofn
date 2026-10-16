@@ -1,0 +1,53 @@
+<div class="relative grid gap-1">
+  <label
+    class="flex flex-col self-start font-brigade text-base font-normal leading-5 text-white"
+    [for]="id()"
+    >{{ label() }}
+    @if (required() && isRequiredIcon()) {
+      <span class="ms-0.5 text-red-400" aria-hidden="true">*</span>
+    }
+  </label>
+  <div class="relative">
+    <input
+      class="box-border h-12 w-full rounded-lg border border-gray-border bg-black-form-background px-4 text-base text-white outline-none placeholder:text-gray-placeholder focus-visible:border-gray-icon aria-invalid:border-red-button"
+      [class.pe-14]="isPassword()"
+      [id]="id()"
+      [type]="inputType()"
+      [value]="value"
+      [placeholder]="placeholder()"
+      [required]="required()"
+      [disabled]="disabled"
+      [autocomplete]="autocomplete()"
+      [attr.aria-invalid]="!!error()"
+      [attr.aria-describedby]="error() ? id() + '-error' : null"
+      (input)="updateFromEvent($event)"
+      (blur)="touched()"
+    />
+    @if (isPassword()) {
+      <button
+        type="button"
+        class="absolute end-3.5 top-1/2 grid size-8 -translate-y-1/2 cursor-pointer place-items-center rounded-md border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-gray-icon"
+        [attr.aria-label]="revealed() ? 'Hide password' : 'Show password'"
+        [attr.aria-pressed]="revealed()"
+        [attr.aria-controls]="id()"
+        (click)="toggleReveal()"
+      >
+        <img
+          [src]="revealed() ? '/assets/icons/eye.svg' : '/assets/icons/eye-off.svg'"
+          width="22"
+          height="18"
+          alt=""
+        />
+      </button>
+    }
+  </div>
+  @if (error()) {
+    <!-- Absolute, so showing or hiding it never changes the height of the form: it sits in the
+         gap that follows the field (keep that gap at least 24px: 8px air + 14px text). -->
+    <small
+      class="absolute start-0 top-full mt-2 text-[11px] leading-[14px] text-red-400"
+      [id]="id() + '-error'"
+      >{{ error() }}</small
+    >
+  }
+</div>

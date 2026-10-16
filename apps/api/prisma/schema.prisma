@@ -61,8 +61,36 @@ enum SessionRevokeReason {
   PASSWORD_CHANGED
   PASSWORD_RESET
   USER_DEACTIVATED
+  /// The role lost access to the session's app (e.g. admin → employee on a dashboard session).
+  ACCESS_CHANGED
 
   @@map("session_revoke_reason")
+}
+
+enum ClientApp {
+  DASHBOARD
+  MOBILE
+
+  @@map("client_app")
+}
+
+/// What the request asks to do.
+enum ApprovalAction {
+  DELETE_CLIENT
+  DELETE_USER
+
+  @@map("approval_action")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  /// The target changed while the request waited; the owner reviews a fresh request (stage 2, A-7).
+  STALE
+
+  @@map("approval_status")
 }
 
 /// A system role. `key` equals the Role enum value in packages/shared.
@@ -126,7 +154,6 @@ model User {
   status              UserStatus @default(ACTIVE)
   roleId              String     @map("role_id") @db.Uuid
   clientId            String?    @map("client_id") @db.Uuid
-  mustChangePassword  Boolean    @default(false) @map("must_change_password")
   failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
   lockedUntil         DateTime?  @map("locked_until") @db.Timestamptz(3)
   lastLoginAt         DateTime?  @map("last_login_at") @db.Timestamptz(3)
@@ -141,14 +168,42 @@ model User {
   createdBy    User?   @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdUsers User[]  @relation("UserCreatedBy")
 
-  sessions        UserSession[]
-  clientTeams     ClientTeamMember[] @relation("ClientTeamMemberUser")
-  teamAssignments ClientTeamMember[] @relation("ClientTeamMemberAssignedBy")
+  sessions           UserSession[]
+  clientTeams        ClientTeamMember[] @relation("ClientTeamMemberUser")
+  teamAssignments    ClientTeamMember[] @relation("ClientTeamMemberAssignedBy")
+  requestedApprovals ApprovalRequest[]  @relation("ApprovalRequestedBy")
+  decidedApprovals   ApprovalRequest[]  @relation("ApprovalDecidedBy")
 
   @@index([roleId])
   @@index([clientId])
   @@index([createdById])
   @@map("users")
+}
+
+/// A sensitive action an admin may only request; an owner approves or rejects it.
+model ApprovalRequest {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  action        ApprovalAction
+  /// The client or user the action targets. No foreign key on purpose: it points at a client *or* a user,
+  /// depending on `action` (a polymorphic reference). The service checks that the target exists.
+  targetId      String         @map("target_id") @db.Uuid
+  status        ApprovalStatus @default(PENDING)
+  reason        String
+  requestedById String         @map("requested_by_id") @db.Uuid
+  decidedById   String?        @map("decided_by_id") @db.Uuid
+  decidedAt     DateTime?      @map("decided_at") @db.Timestamptz(3)
+  decisionNote  String?        @map("decision_note")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  requestedBy User  @relation("ApprovalRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  decidedBy   User? @relation("ApprovalDecidedBy", fields: [decidedById], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([targetId])
+  @@index([requestedById])
+  @@index([decidedById])
+  @@map("approval_requests")
 }
 
 /// One login on one device. The refresh token rotates inside the row; the row doubles as login history.
@@ -166,8 +221,8 @@ model UserSession {
   expiresAt        DateTime             @map("expires_at") @db.Timestamptz(3)
   revokedAt        DateTime?            @map("revoked_at") @db.Timestamptz(3)
   revokeReason     SessionRevokeReason? @map("revoke_reason")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app              ClientApp            @default(MOBILE)
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("user_sessions")

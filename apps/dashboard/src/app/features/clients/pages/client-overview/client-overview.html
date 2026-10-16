@@ -1,0 +1,42 @@
+@if (client(); as c) {
+  <!-- In the design the header and the tabs end 12px before the cards do. -->
+  <div class="ps-3">
+    <tf-client-header [client]="c" />
+    <tf-client-tabs />
+  </div>
+  <tf-stat-cards class="mt-[23px]" [stats]="c.stats" />
+  <div
+    class="mt-3.5 grid grid-cols-1 gap-3.5 tablet:grid-cols-2 desktop:grid-cols-4"
+    aria-label="تفاصيل العميل"
+  >
+    <tf-app-access-card [access]="c.appAccess" />
+    <tf-contract-card [contract]="c.contract" />
+    <tf-team-card [team]="c.team" />
+    <tf-contact-card [contact]="c.contact" />
+  </div>
+  <tf-project-timeline class="mt-3.5" [timeline]="c.timeline" />
+} @else {
+  @switch (state().status) {
+    @case ('loading') {
+      <p class="mt-20 text-center text-muted" role="status">جارٍ التحميل…</p>
+    }
+    @case ('not-found') {
+      <p class="mt-20 text-center text-muted" role="status">لا يوجد عميل بهذا الرقم.</p>
+    }
+    @case ('empty') {
+      <p class="mt-20 text-center text-muted" role="status">لا يوجد عملاء بعد.</p>
+    }
+    @case ('error') {
+      <div class="mt-20 text-center" role="alert">
+        <p class="m-0 text-muted">تعذّر تحميل بيانات العميل.</p>
+        <button
+          type="button"
+          class="mt-4 h-[38px] cursor-pointer rounded-lg border border-white/16 bg-chip px-5 text-[15px] text-ink"
+          (click)="retry()"
+        >
+          إعادة المحاولة
+        </button>
+      </div>
+    }
+  }
+}

@@ -21,12 +21,48 @@ describe('RBAC matrix', () => {
     expect(validateRbacMatrix(RBAC_MATRIX)).toEqual([]);
   });
 
-  it('gives admin everything with scope ALL, except payment cards and HR self-service', () => {
+  it('gives admin everything with scope ALL, except payment cards, HR self-service and owner-only permissions', () => {
     const adminGrants = RBAC_MATRIX[Role.ADMIN];
-    const excluded = [Permission.PAYMENT_METHODS_MANAGE, Permission.HR_SELF_SERVICE];
+    const excluded = [
+      Permission.PAYMENT_METHODS_MANAGE,
+      Permission.HR_SELF_SERVICE,
+      Permission.USERS_DELETE,
+      Permission.CLIENTS_DELETE,
+      Permission.APPROVALS_DECIDE,
+      Permission.USERS_MANAGE_ADMINS,
+    ];
     for (const permission of allPermissions) {
       if (excluded.includes(permission)) expect(adminGrants[permission]).toBeUndefined();
       else expect(adminGrants[permission]).toBe(PermissionScope.ALL);
+    }
+  });
+
+  it('gives the owner everything except payment cards and HR self-service', () => {
+    const grants = RBAC_MATRIX[Role.OWNER];
+    expect(grants[Permission.CLIENTS_DELETE]).toBe(PermissionScope.ALL);
+    expect(grants[Permission.USERS_MANAGE_ADMINS]).toBe(PermissionScope.ALL);
+    expect(grants[Permission.APPROVALS_DECIDE]).toBe(PermissionScope.ALL);
+    expect(grants[Permission.PAYMENT_METHODS_MANAGE]).toBeUndefined();
+    expect(grants[Permission.HR_SELF_SERVICE]).toBeUndefined();
+  });
+
+  it('keeps delete and admin-management away from the admin', () => {
+    const grants = RBAC_MATRIX[Role.ADMIN];
+    expect(grants[Permission.CLIENTS_DELETE]).toBeUndefined();
+    expect(grants[Permission.USERS_DELETE]).toBeUndefined();
+    expect(grants[Permission.USERS_MANAGE_ADMINS]).toBeUndefined();
+    expect(grants[Permission.APPROVALS_DECIDE]).toBeUndefined();
+    expect(grants[Permission.APPROVALS_REQUEST]).toBe(PermissionScope.ALL);
+  });
+
+  it('lets only owner and admin open the dashboard', () => {
+    const withDashboard = allRoles.filter((role) => RBAC_MATRIX[role][Permission.APP_DASHBOARD]);
+    expect([...withDashboard].sort()).toEqual([Role.ADMIN, Role.OWNER].sort());
+  });
+
+  it('lets every role open the mobile app', () => {
+    for (const role of allRoles) {
+      expect(RBAC_MATRIX[role][Permission.APP_MOBILE]).toBeDefined();
     }
   });
 
@@ -45,13 +81,14 @@ describe('RBAC matrix', () => {
     expect(grants[Permission.CLIENTS_READ]).toBeUndefined();
   });
 
-  it('limits the employee to own tasks, team chat and HR self-service', () => {
+  it('limits the employee to own tasks, team chat, HR self-service and the mobile app', () => {
     expect(RBAC_MATRIX[Role.EMPLOYEE]).toEqual({
       [Permission.TASKS_READ]: PermissionScope.OWN,
       [Permission.TASKS_UPDATE_STATUS]: PermissionScope.OWN,
       [Permission.CHAT_READ]: PermissionScope.ASSIGNED,
       [Permission.CHAT_SEND]: PermissionScope.ASSIGNED,
       [Permission.HR_SELF_SERVICE]: PermissionScope.OWN,
+      [Permission.APP_MOBILE]: PermissionScope.OWN,
     });
   });
 

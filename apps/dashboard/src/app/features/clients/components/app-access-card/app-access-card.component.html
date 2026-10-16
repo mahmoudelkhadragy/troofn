@@ -1,0 +1,32 @@
+<div class="flex items-center justify-between">
+  <h2 class="m-0 text-base font-bold leading-6 text-ink">التطبيق</h2>
+  <span
+    class="flex h-[25px] items-center gap-2 rounded-md bg-[#282828]/65 px-2 text-sm text-ink"
+    dir="ltr"
+    aria-label="التقييم"
+  >
+    <b class="text-[9px] font-bold tracking-tight text-gray-icon">360</b>
+    {{ state().rating }}<small class="text-[8px] text-muted">/10</small>
+  </span>
+</div>
+
+<ul class="m-0 mt-3 list-none p-0">
+  <li class="flex h-[35px] items-center justify-between">
+    <tf-toggle-switch
+      label="App Access"
+      [checked]="state().enabled"
+      (checkedChange)="setAppAccess($event)"
+    />
+    <span class="text-xs text-ink" dir="ltr">App Access</span>
+  </li>
+  @for (option of state().sow; track option.label; let i = $index) {
+    <li class="flex h-[35px] items-center justify-between">
+      <tf-toggle-switch
+        [label]="option.label"
+        [checked]="option.enabled"
+        (checkedChange)="setSow(i, $event)"
+      />
+      <span class="text-xs text-ink" dir="ltr">{{ option.label }}</span>
+    </li>
+  }
+</ul>

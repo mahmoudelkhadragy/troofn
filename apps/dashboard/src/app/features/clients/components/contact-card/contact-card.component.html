@@ -1,0 +1,32 @@
+<h2 class="m-0 text-base font-bold leading-6 text-ink">بيانات العميل</h2>
+
+<ul class="m-0 mt-5 flex list-none flex-col gap-[19px] p-0">
+  @for (row of rows(); track row.label) {
+    <li class="flex items-center gap-3">
+      @if (row.href) {
+        <a
+          class="grid size-[29px] shrink-0 place-items-center rounded-lg bg-[#1a1a1c] text-gray-icon no-underline"
+          [href]="row.href"
+          [attr.aria-label]="row.label"
+          [attr.target]="row.external ? '_blank' : null"
+          rel="noopener noreferrer"
+        >
+          <span class="material-symbols-outlined text-lg" aria-hidden="true">{{ row.icon }}</span>
+        </a>
+      } @else {
+        <span
+          class="grid size-[29px] shrink-0 place-items-center rounded-lg bg-[#1a1a1c] text-dim"
+          aria-hidden="true"
+        >
+          <span class="material-symbols-outlined text-lg">{{ row.icon }}</span>
+        </span>
+      }
+      <span class="min-w-0 flex-1">
+        <span class="block text-[13px] leading-[17px] text-muted">{{ row.label }}</span>
+        <span class="block truncate text-right text-[13px] leading-[17px] text-ink" dir="ltr">{{
+          row.value
+        }}</span>
+      </span>
+    </li>
+  }
+</ul>

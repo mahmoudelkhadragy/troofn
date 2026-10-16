@@ -1,0 +1,28 @@
+<header class="flex h-[71px] shrink-0 items-end bg-black-light ps-[27px] max-tablet:ps-3">
+  <nav class="no-scrollbar flex h-[52px] min-w-0 overflow-x-auto" aria-label="التنقل الرئيسي">
+    @for (tab of tabs; track tab.label) {
+      <button
+        type="button"
+        class="flex w-[157px] shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-t-2xl border-0 text-base max-tablet:w-auto max-tablet:px-4 max-tablet:text-sm"
+        [class]="tab.active ? 'bg-black font-medium text-ink' : 'bg-transparent text-[#d9d9d9]'"
+        [attr.aria-current]="tab.active ? 'page' : null"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </nav>
+
+  <button
+    type="button"
+    class="relative me-9 ms-auto grid size-10 shrink-0 cursor-pointer place-items-center self-center border-0 bg-transparent text-gray-icon max-tablet:me-3"
+    aria-label="الإشعارات"
+  >
+    <span class="material-symbols-outlined text-[28px]">notifications</span>
+    @if (notifications > 0) {
+      <i
+        class="absolute -left-1 -top-1 grid size-[17px] place-items-center rounded-full bg-[#d42a3a] text-[11px] not-italic leading-none text-white"
+        >{{ notifications }}</i
+      >
+    }
+  </button>
+</header>

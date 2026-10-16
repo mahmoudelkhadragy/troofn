@@ -1,9 +1,9 @@
 import { Permission, PermissionScope, Role } from '@troofn/shared';
 
 /**
- * Source of truth for roles and what they may do. The seed copies this into the
- * roles / permissions / role_permissions tables; at runtime the API reads the tables.
- * Change who-can-do-what here, re-run `pnpm db:seed`, and update docs/03.
+ * Source of truth for roles and what they may do. The API copies this into the
+ * roles / permissions / role_permissions tables when it starts (syncRbac); at runtime it reads the tables.
+ * Change who-can-do-what here, restart the API (or run `pnpm db:seed`), and update docs/03.
  */
 
 export type RoleAudience = 'STAFF' | 'CLIENT';
@@ -24,11 +24,19 @@ export interface PermissionDefinition {
 export type RbacMatrix = Record<Role, Partial<Record<Permission, PermissionScope>>>;
 
 export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
+  [Role.OWNER]: {
+    nameAr: 'مالك النظام',
+    nameEn: 'System owner',
+    audience: 'STAFF',
+    description:
+      'Full access to the whole system. The only role that manages owner and admin accounts and approves delete requests.',
+  },
   [Role.ADMIN]: {
     nameAr: 'مدير النظام',
     nameEn: 'Troofn admin',
     audience: 'STAFF',
-    description: 'Manages the whole system from the dashboard.',
+    description:
+      'Manages the system from the dashboard. Cannot delete users or clients (requests approval from the owner) or manage owner and admin accounts.',
   },
   [Role.MARKETING_MANAGER]: {
     nameAr: 'مدير تسويق تروفن',
@@ -122,6 +130,16 @@ const PERMISSION_DESCRIPTIONS: Record<Permission, { description: string; module?
   [Permission.ATTENDANCE_MANAGE]: p('Manage attendance records'),
   [Permission.LEAVES_APPROVE]: p('Approve or reject leave requests'),
   [Permission.HR_SELF_SERVICE]: p('Own salary, attendance, rating and leave requests'),
+  [Permission.APP_DASHBOARD]: p('Sign in to the dashboard'),
+  [Permission.APP_MOBILE]: p('Sign in to the mobile app'),
+  [Permission.USERS_DELETE]: p('Delete a user account (admins must request approval)'),
+  [Permission.CLIENTS_DELETE]: p('Delete a client company (admins must request approval)'),
+  [Permission.USERS_MANAGE_ADMINS]: p(
+    'Create, edit, deactivate, reset the password of, or delete owner and admin accounts',
+  ),
+  [Permission.APPROVALS_READ]: p('View approval requests'),
+  [Permission.APPROVALS_REQUEST]: p('Request owner approval for a sensitive action'),
+  [Permission.APPROVALS_DECIDE]: p('Approve or reject approval requests'),
 };
 
 /** `clients.read` → module `clients`. */
@@ -134,17 +152,27 @@ export const PERMISSION_DEFINITIONS = Object.fromEntries(
 
 const { ALL, ASSIGNED, OWN_CLIENT, OWN } = PermissionScope;
 
-/** Admin gets everything except the client-only card screen and staff self-service. */
-const ADMIN_EXCLUDED = new Set<Permission>([
+/** Never granted to owner or admin: the client-only card screen and staff self-service. */
+const OWNER_EXCLUDED = new Set<Permission>([
   Permission.PAYMENT_METHODS_MANAGE,
   Permission.HR_SELF_SERVICE,
 ]);
+/**
+ * Owner has these; admin does not. When you add a sensitive permission, put it here
+ * or in OWNER_EXCLUDED, otherwise admin gets it automatically.
+ */
+const OWNER_ONLY = new Set<Permission>([
+  Permission.USERS_DELETE,
+  Permission.CLIENTS_DELETE,
+  Permission.APPROVALS_DECIDE,
+  Permission.USERS_MANAGE_ADMINS,
+]);
+const OWNER_PERMISSIONS = Object.values(Permission).filter((p) => !OWNER_EXCLUDED.has(p));
 
 export const RBAC_MATRIX: RbacMatrix = {
+  [Role.OWNER]: Object.fromEntries(OWNER_PERMISSIONS.map((p) => [p, ALL])),
   [Role.ADMIN]: Object.fromEntries(
-    Object.values(Permission)
-      .filter((permission) => !ADMIN_EXCLUDED.has(permission))
-      .map((permission) => [permission, ALL]),
+    OWNER_PERMISSIONS.filter((p) => !OWNER_ONLY.has(p)).map((p) => [p, ALL]),
   ),
 
   [Role.MARKETING_MANAGER]: {
@@ -173,6 +201,7 @@ export const RBAC_MATRIX: RbacMatrix = {
     [Permission.LEADS_READ]: ALL,
     [Permission.LEADS_MANAGE]: ALL,
     [Permission.HR_SELF_SERVICE]: OWN,
+    [Permission.APP_MOBILE]: OWN,
   },
 
   [Role.CONTENT_WRITER]: {
@@ -185,6 +214,7 @@ export const RBAC_MATRIX: RbacMatrix = {
     [Permission.CHAT_READ]: ASSIGNED,
     [Permission.CHAT_SEND]: ASSIGNED,
     [Permission.HR_SELF_SERVICE]: OWN,
+    [Permission.APP_MOBILE]: OWN,
   },
 
   [Role.EMPLOYEE]: {
@@ -193,6 +223,7 @@ export const RBAC_MATRIX: RbacMatrix = {
     [Permission.CHAT_READ]: ASSIGNED,
     [Permission.CHAT_SEND]: ASSIGNED,
     [Permission.HR_SELF_SERVICE]: OWN,
+    [Permission.APP_MOBILE]: OWN,
   },
 
   [Role.CLIENT]: {
@@ -213,6 +244,7 @@ export const RBAC_MATRIX: RbacMatrix = {
     [Permission.PAYMENT_METHODS_MANAGE]: OWN_CLIENT,
     [Permission.CHAT_READ]: OWN_CLIENT,
     [Permission.CHAT_SEND]: OWN_CLIENT,
+    [Permission.APP_MOBILE]: OWN,
   },
 
   [Role.CLIENT_MARKETING_OFFICER]: {
@@ -227,6 +259,7 @@ export const RBAC_MATRIX: RbacMatrix = {
     [Permission.MEETINGS_CREATE]: OWN_CLIENT,
     [Permission.CHAT_READ]: OWN_CLIENT,
     [Permission.CHAT_SEND]: OWN_CLIENT,
+    [Permission.APP_MOBILE]: OWN,
   },
 
   [Role.CLIENT_ACCOUNTANT]: {
@@ -238,6 +271,7 @@ export const RBAC_MATRIX: RbacMatrix = {
     [Permission.PAYMENTS_READ]: OWN_CLIENT,
     [Permission.PAYMENTS_CREATE]: OWN_CLIENT,
     [Permission.PAYMENT_METHODS_MANAGE]: OWN_CLIENT,
+    [Permission.APP_MOBILE]: OWN,
   },
 };
 

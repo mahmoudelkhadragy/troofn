@@ -92,7 +92,10 @@ export class UsersController {
   @Post(':id/reset-password')
   @RequirePermissions(Permission.USERS_RESET_PASSWORD)
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Set a temporary password; the user must change it at next login' })
+  @ApiOperation({
+    summary: "Set a user's password, unlock the account and end their sessions",
+    description: 'The only way a password changes after creation: users cannot change their own.',
+  })
   @ApiNoContentResponse()
   @ApiNotFoundResponse()
   resetPassword(

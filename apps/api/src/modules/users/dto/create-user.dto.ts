@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@troofn/shared';
 import { Transform } from 'class-transformer';
 import {
-  IsBoolean,
   IsEmail,
   IsEnum,
   IsIn,
@@ -75,9 +74,4 @@ export class CreateUserDto {
   @IsOptional()
   @IsIn(['ACTIVE', 'INACTIVE'])
   status?: 'ACTIVE' | 'INACTIVE';
-
-  @ApiPropertyOptional({ default: false, description: 'Force a password change at first login' })
-  @IsOptional()
-  @IsBoolean()
-  mustChangePassword?: boolean;
 }

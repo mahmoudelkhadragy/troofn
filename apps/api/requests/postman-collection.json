@@ -1,0 +1,474 @@
+{
+  "info": {
+    "_postman_id": "b7f1c2a4-9d3e-4f6a-8b21-troofn00api1",
+    "name": "Troofn Business Gate API",
+    "description": "All REST endpoints of the Troofn API.\n\nBase URL: `{{baseUrl}}` (default `http://localhost:3000/api/v1`)\nAuth: send a Bearer token in `{{token}}`.\n\nHow to use:\n1. Send **Auth > Login** with a seeded user (e.g. `admin`). The response's `data.accessToken` is saved to `{{token}}` automatically.\n2. Every protected request uses `{{token}}`.\n3. For lookup/mutation endpoints, fill the path variables (`:userId`, `:clientId`).\n\nDemo users: admin, fahad.mm, abdullah.writer, ahmed.employee, wejnad.owner, wejnad.marketing, wejnad.accountant, jabr.owner, nukhba.owner.\nPassword of every seeded user = `SEED_DEFAULT_PASSWORD` (apps/api/.env, default `Troofn@2026`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "description": "Public liveness/readiness probes (no auth).",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Liveness - the API process is up. Returns status, env, commit and uptime."
+          },
+          "response": []
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["health", "ready"]
+            },
+            "description": "Readiness - the API can reach PostgreSQL (Terminus health check)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Authentication, session and self-service password endpoints.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Save the access token into the collection variable so protected",
+                  "// requests work right after login.",
+                  "const body = pm.response.json();",
+                  "const data = body && body.data ? body.data : body;",
+                  "if (data && data.accessToken) {",
+                  "  pm.collectionVariables.set('token', data.accessToken);",
+                  "  console.log('Saved accessToken to {{token}}');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Troofn@2026\",\n  \"app\": \"DASHBOARD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Sign in with username and password.\n\n- username: case-insensitive, 1-50 chars\n- password: 1-200 chars\n- app: DASHBOARD | MOBILE (required). Only owner and admin may use DASHBOARD (403 APP_NOT_ALLOWED otherwise); every role may use MOBILE\n\nRate limited per IP (AUTH_LOGIN_RATE_LIMIT, default 5/min -> 429).\nReturns 401 invalid credentials, 403 inactive user/client or app access disabled, 423 locked after too many failed attempts.\nSaves `data.accessToken` to `{{token}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"PASTE_REFRESH_TOKEN_FROM_LOGIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Exchange a refresh token for a new token pair (rotation).\n\nPaste `data.refreshToken` from a previous login/refresh.\nThe old refresh token is invalidated; reusing it returns 401 and revokes the whole session (reuse = theft).\nRate limited per IP."
+          },
+          "response": []
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "The signed-in user, role and permissions (permission key -> scope)."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "End the current session (the session id in the token is revoked). Returns 204."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout all",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout-all",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout-all"]
+            },
+            "description": "End every session of the current user (all devices). Returns 204."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "User administration. Requires the matching users.* permission (users.read / users.create / users.update / users.reset-password).",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users?page=1&limit=20&search=&role=&status=&clientId=&sortBy=&sortOrder=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number, minimum 1 (default 1)."
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size, 1-100 (default 20)."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Free-text search."
+                },
+                {
+                  "key": "role",
+                  "value": "",
+                  "description": "admin | client | client_marketing_officer | client_accountant | marketing_manager | content_writer | employee"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "ACTIVE | INACTIVE"
+                },
+                {
+                  "key": "clientId",
+                  "value": "",
+                  "description": "UUID of a client company."
+                },
+                {
+                  "key": "sortBy",
+                  "value": "",
+                  "description": "Field to sort by."
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "asc | desc (default desc)."
+                }
+              ]
+            },
+            "description": "List users (paginated; filter by role, status, client; search). Requires users.read."
+          },
+          "response": []
+        },
+        {
+          "name": "Get user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/:userId",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": "User UUID."
+                }
+              ]
+            },
+            "description": "One user by id. Requires users.read. Returns 404 when not found."
+          },
+          "response": []
+        },
+        {
+          "name": "Create user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"wejnad#2\",\n  \"displayName\": \"Test marketing officer\",\n  \"role\": \"client_marketing_officer\",\n  \"clientId\": \"PASTE_CLIENT_UUID\",\n  \"password\": \"Temp-pass-123\",\n  \"email\": \"marketing@wejnad.sa\",\n  \"phone\": \"+966551234567\",\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "description": "Create a staff user or a client login.\n\n- username: 3-50 chars [a-z0-9._#-], stored lowercase\n- displayName: up to 120 chars\n- role: Role enum\n- clientId: required for client roles, forbidden for staff roles\n- password: 8+ chars with a letter and a digit\n- email / phone / status: optional\n\nThe owner or admin chooses the password and gives it to the user: users cannot set or change their own.\nRequires users.create. 400 validation or role/client mismatch; 409 username or email already in use."
+          },
+          "response": []
+        },
+        {
+          "name": "Update user",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Updated name\",\n  \"role\": \"client_accountant\",\n  \"clientId\": \"PASTE_CLIENT_UUID\",\n  \"email\": \"updated@wejnad.sa\",\n  \"phone\": \"+966551234567\",\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/:userId",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": "User UUID."
+                }
+              ]
+            },
+            "description": "Edit profile, role, client or status. Username and password are not editable here.\nDeactivating a user ends their sessions.\nclientId may be null when switching to a staff role.\nRequires users.update. Returns 404 when not found."
+          },
+          "response": []
+        },
+        {
+          "name": "Reset user password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newPassword\": \"Temp-pass-123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/:userId/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", ":userId", "reset-password"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": "User UUID."
+                }
+              ]
+            },
+            "description": "Set the user's password, unlock the account and end their sessions. This is the only way a password changes after creation: users cannot change their own.\n\nnewPassword policy: 8+ chars with a letter and a digit.\nRequires users.reset-password. Returns 204, or 404 when not found."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "description": "Client companies visible to the caller. Requires clients.read.",
+      "item": [
+        {
+          "name": "List clients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clients?page=1&limit=20&search=&status=&sortBy=&sortOrder=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["clients"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number, minimum 1 (default 1)."
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size, 1-100 (default 20)."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Free-text search."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "ACTIVE | INACTIVE"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "",
+                  "description": "Field to sort by."
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "asc | desc (default desc)."
+                }
+              ]
+            },
+            "description": "Clients visible to the caller (admin: all, manager: assigned, client user: own). Requires clients.read."
+          },
+          "response": []
+        },
+        {
+          "name": "Get client",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clients/:clientId",
+              "host": ["{{baseUrl}}"],
+              "path": ["clients", ":clientId"],
+              "variable": [
+                {
+                  "key": "clientId",
+                  "value": "",
+                  "description": "Client UUID."
+                }
+              ]
+            },
+            "description": "Client profile with its team. Requires clients.read. Returns 404 when outside your scope."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "description": "Roles and their permissions/scopes. Requires roles.read.",
+      "item": [
+        {
+          "name": "List roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["roles"]
+            },
+            "description": "Roles with their permissions and scopes. Requires roles.read. Returns 403 without it."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

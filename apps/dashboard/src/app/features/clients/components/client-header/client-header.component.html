@@ -1,0 +1,40 @@
+<div class="flex items-start gap-3.5 pt-5 max-phone:flex-wrap">
+  <span
+    class="grid size-[61px] shrink-0 place-items-center rounded-xl bg-[#0f4d42] text-2xl text-ink"
+    aria-hidden="true"
+    >{{ letter() }}</span
+  >
+
+  <div class="min-w-0 pt-[3px]">
+    <div class="flex flex-wrap items-center gap-3">
+      <h1 class="m-0 text-xl font-bold leading-[26px] text-ink">{{ client().name }}</h1>
+      <span
+        class="rounded-full px-3.5 text-sm leading-[25px]"
+        [class]="active() ? 'bg-live/10 text-live' : 'bg-brand/20 text-[#ff6b78]'"
+        >{{ active() ? 'نشط' : 'غير نشط' }}</span
+      >
+    </div>
+    <p class="m-0 mt-[5px] flex flex-wrap items-center gap-3 text-[15px] leading-[21px] text-muted">
+      <span>{{ client().activity }}</span>
+      <i class="h-[22px] w-px bg-line not-italic" aria-hidden="true"></i>
+      <span>{{ client().contactName }}</span>
+    </p>
+  </div>
+
+  <div class="ms-auto flex shrink-0 items-center gap-[9px] self-center max-phone:ms-0">
+    <button
+      type="button"
+      class="flex h-9 w-[102px] cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-brand text-[15px] text-white"
+    >
+      إضافة عقد
+      <span class="material-symbols-outlined text-xl" aria-hidden="true">add</span>
+    </button>
+    <button
+      type="button"
+      class="flex h-[38px] w-20 cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/16 bg-chip text-[15px] text-ink"
+    >
+      تعديل
+      <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
+    </button>
+  </div>
+</div>

@@ -19,7 +19,7 @@ const payload: JwtPayload = {
   role: Role.CLIENT,
   clientId: '0199c3a0-0000-7000-8000-0000000000c1',
   sid: '0199c3a0-0000-7000-8000-0000000000aa',
-  mcp: false,
+  app: 'MOBILE',
 };
 
 describe('TokenService', () => {
@@ -61,6 +61,15 @@ describe('TokenService', () => {
         audience: 'something-else',
       });
       await expect(service.verifyAccessToken(other)).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('rejects a token signed before the app claim existed', async () => {
+      const { app: _app, ...withoutApp } = payload;
+      const old = await new JwtService({ secret: ACCESS_SECRET }).signAsync(withoutApp, {
+        issuer: 'troofn-api',
+        audience: 'troofn-api',
+      });
+      await expect(service.verifyAccessToken(old)).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('rejects garbage', async () => {

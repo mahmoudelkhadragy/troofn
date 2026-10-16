@@ -2,21 +2,50 @@
    theme tokens, so `bg-primary`, `text-on-surface-variant`, etc. follow the theme. */
 @import 'tailwindcss';
 
+/* Short screens (a laptop browser with its toolbars): `short:` utilities compact the layout. */
+@custom-variant short (@media (height <= 640px));
+
+/* Hides the scrollbar but keeps the area scrollable (wheel, touch, keyboard). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @theme inline {
-  --color-primary: var(--mat-sys-primary);
-  --color-on-primary: var(--mat-sys-on-primary);
-  --color-primary-container: var(--mat-sys-primary-container);
-  --color-on-primary-container: var(--mat-sys-on-primary-container);
-  --color-surface: var(--mat-sys-surface);
-  --color-surface-container-lowest: var(--mat-sys-surface-container-lowest);
-  --color-surface-container-low: var(--mat-sys-surface-container-low);
-  --color-surface-container: var(--mat-sys-surface-container);
-  --color-surface-container-high: var(--mat-sys-surface-container-high);
-  --color-on-surface: var(--mat-sys-on-surface);
-  --color-on-surface-variant: var(--mat-sys-on-surface-variant);
-  --color-outline: var(--mat-sys-outline);
-  --color-outline-variant: var(--mat-sys-outline-variant);
-  --color-error: var(--mat-sys-error);
+  /* ====================< screens >================== */
+  --breakpoint-phone: 35rem;
+  --breakpoint-dashboard: 41.25rem;
+  --breakpoint-tablet: 47.5rem;
+  --breakpoint-wide: 75rem;
+  --breakpoint-desktop: 80rem;
+  /* ====================< colors >================== */
   --color-success: #1b7f3b;
   --color-success-container: #d7f5df;
+  --color-black: #000000;
+  --color-black-light: #0d0d0d;
+  --color-black-layout: #000000e6;
+  --color-black-form-background: #131313;
+  --color-gray-border: #424242;
+  --color-gray-placeholder: #6b7280;
+  --color-gray-icon: #8e8e8e;
+  --color-red-button: #7a0808;
+
+  /* Dashboard (Figma "central management" screens). Surfaces use black / black-light above. */
+  --color-ink: #f4f4f4;
+  --color-muted: #707079;
+  --color-brand: #8a0712;
+  --color-accent: #e4ac83;
+  --color-live: #21c45d;
+  --color-chip: #292929;
+  --color-avatar: #242428;
+  --color-line: #1c1c1c;
+  --color-dim: #474747;
+
+  /* ====================< fonts >================== */
+  --font-brigade: 'Fundamental Brigade', sans-serif;
+  --font-display: 'Lyon Arabic Display', serif;
 }

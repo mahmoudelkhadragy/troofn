@@ -1,4 +1,10 @@
-import type { AuthUser, PermissionScope, Role } from '@troofn/shared';
+import {
+  Permission,
+  type AuthUser,
+  type ClientApp,
+  type PermissionScope,
+  type Role,
+} from '@troofn/shared';
 import { Prisma } from '../../generated/prisma/client.js';
 
 /**
@@ -12,7 +18,6 @@ export const authUserSelect = {
   email: true,
   phone: true,
   status: true,
-  mustChangePassword: true,
   lastLoginAt: true,
   deletedAt: true,
   clientId: true,
@@ -50,7 +55,6 @@ export function toAuthUser(row: AuthUserRow): AuthUser {
     client: row.client
       ? { id: row.client.id, code: row.client.code, companyName: row.client.companyName }
       : null,
-    mustChangePassword: row.mustChangePassword,
     lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
     permissions: Object.fromEntries(
       row.role.permissions.map(({ permission, scope }) => [
@@ -75,4 +79,20 @@ export function signInBlocker(row: AuthUserRow): string | null {
     if (!client.appAccessEnabled) return 'App access is disabled for this client';
   }
   return null;
+}
+const APP_PERMISSION: Record<ClientApp, Permission> = {
+  DASHBOARD: Permission.APP_DASHBOARD,
+  MOBILE: Permission.APP_MOBILE,
+};
+
+const APP_LABEL: Record<ClientApp, string> = {
+  DASHBOARD: 'the dashboard',
+  MOBILE: 'the mobile app',
+};
+
+/** Why this role may not use this app, or null if it may. Checked at login and on every refresh. */
+export function appBlocker(row: AuthUserRow, app: ClientApp): string | null {
+  const required = APP_PERMISSION[app];
+  const allowed = row.role.permissions.some(({ permission }) => permission.key === required);
+  return allowed ? null : `This account cannot sign in to ${APP_LABEL[app]}`;
 }

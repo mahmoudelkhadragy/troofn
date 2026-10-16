@@ -36,7 +36,13 @@ export class PermissionsGuard implements CanActivate {
       REQUIRED_PERMISSIONS_KEY,
       targets,
     );
-    if (!required?.length) return true;
+    if (!required?.length) {
+      // @Authenticated(): any signed-in user (JwtAuthGuard already required a valid token).
+      if (this.reflector.getAllAndOverride<boolean>(IS_AUTHENTICATED_ONLY_KEY, targets))
+        return true;
+      // The route declared nothing: deny by default, so a forgotten decorator never opens a route.
+      throw new ForbiddenException(DENIED);
+    }
 
     const request = context
       .switchToHttp()
